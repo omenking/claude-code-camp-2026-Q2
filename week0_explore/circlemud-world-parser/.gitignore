@@ -1,0 +1,8 @@
+*.pyc
+.idea/
+
+# Generated parser output
+_output/
+
+.beans/
+.beans.yml
