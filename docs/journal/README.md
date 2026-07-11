@@ -13,6 +13,7 @@ What is the technical goal you plan to achieve in this week of the bootcamp.
 ## Technical Uncertainty
 What are you uncertain about in terms of technical achievemenet which could result in technical failure or technical deadend?
 
+## Technical Hypotheses 
 Please make an educated guess on what you think the technical outcome will be.
 
 ## Technical Observerations
