@@ -1,11 +1,28 @@
 #!/usr/bin/env bash
-# Remove Windows Zone.Identifier alternate-data-stream artifact files from the repo.
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Remove Windows/WSL Zone.Identifier files from a project directory.
+#
+# Usage: remove_zone_ids [directory]
+#   directory defaults to the current directory.
 
-find "$repo_root" -type f -iname '*Zone.Identifier' -print0 |
-  while IFS= read -r -d '' file; do
-    echo "Removing: $file"
-    rm -f -- "$file"
-  done
+target_dir="${1:-.}"
+
+if [[ ! -d "$target_dir" ]]; then
+  echo "Error: '$target_dir' is not a directory" >&2
+  exit 1
+fi
+
+mapfile -d '' -t files < <(find "$target_dir" -type f -name '*Zone.Identifier' -print0)
+
+if [[ ${#files[@]} -eq 0 ]]; then
+  echo "No Zone.Identifier files found under $target_dir"
+  exit 0
+fi
+
+for f in "${files[@]}"; do
+  rm -f -- "$f"
+  echo "Removed: $f"
+done
+
+echo "Removed ${#files[@]} Zone.Identifier file(s)."
