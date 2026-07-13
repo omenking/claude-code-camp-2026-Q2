@@ -4,3 +4,8 @@
 # Environment / secrets
 .env
 .env.local
+
+# Python virtualenv (shared across week1_baseline/python/* steps)
+.venv/
+__pycache__/
+*.pyc
