@@ -1,7 +1,15 @@
 tasks:
   player:
-    provider: anthropic        # provider name (string)
-    model: claude-haiku-4-5
+    #provider: anthropic 
+    #model: claude-haiku-4-5
+    #provider: gemini 
+    #model: gemini-3.5-flash
+    #provider: ollama_cloud 
+    #model: gemma4:31b-cloud
+    provider: ollama
+    model: gemma4
+    #provider: openai
+    #model: gpt-5.4-mini
     prompt_override:
       system: true
 mud:
