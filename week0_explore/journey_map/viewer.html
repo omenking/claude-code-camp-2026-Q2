@@ -1,0 +1,1074 @@
+<title>Journey Map</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #14161c;
+    --panel: #1c2029;
+    --panel-raised: #232833;
+    --border: #2c313d;
+    --border-soft: #262b36;
+    --text: #dee3ec;
+    --muted: #8790a3;
+    --accent: #e0b84f;
+    --accent-dim: #7a6535;
+    --danger: #d9704f;
+    --frontier: #4a5060;
+    --map-bg: #0e0f13;
+    --radius: 6px;
+    --font-ui: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    overflow: hidden;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 9px 16px; background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgba(224, 184, 79, 0.08);
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 15px; margin: 0 4px 0 0; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  header label {
+    font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px;
+  }
+  select, button {
+    background: var(--border-soft); color: var(--text); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 5px 9px; font-size: 12px;
+    font-family: inherit; transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  button:hover, select:hover { border-color: var(--accent); cursor: pointer; background: #2b313d; }
+  button:active { transform: translateY(0.5px); }
+  select:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  #status {
+    font-size: 11px; color: var(--muted); margin-left: auto;
+    font-family: var(--font-mono); white-space: nowrap;
+  }
+  #status.stale { color: var(--danger); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #mapwrap { flex: 1; position: relative; overflow: hidden; background: var(--map-bg); }
+  svg#map { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg#map.dragging { cursor: grabbing; }
+  #resizer {
+    flex-shrink: 0; width: 5px; margin: 0 -2px; position: relative; z-index: 5;
+    background: var(--border); cursor: col-resize;
+  }
+  #resizer:hover, #resizer.dragging { background: var(--accent); }
+  #resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: -3px; right: -3px; }
+  #sidebar {
+    width: 320px; flex-shrink: 0; background: var(--panel);
+    border-left: 1px solid var(--border); padding: 14px 16px; overflow-y: auto;
+    font-size: 15px; line-height: 1.5;
+  }
+  #sidebar::-webkit-scrollbar { width: 9px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+  #sidebar::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+  #sidebar h2 {
+    font-size: 19px; margin: 0 0 8px 0; color: var(--accent); font-weight: 700;
+    line-height: 1.3;
+  }
+  #sidebar .eyebrow {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--muted); margin: 14px 0 4px 0; font-weight: 600;
+  }
+  #sidebar .eyebrow:first-of-type { margin-top: 10px; }
+  #sidebar .row { margin: 3px 0; color: var(--muted); }
+  #sidebar .row b { color: var(--text); font-weight: 600; }
+  #sidebar ul { margin: 4px 0; padding-left: 20px; }
+  #sidebar li { margin: 2px 0; }
+  #sidebar .empty { color: var(--muted); font-style: italic; }
+  #sidebar .meta-line {
+    font-size: 13px; color: var(--muted); font-family: var(--font-mono);
+    margin: 2px 0 10px 0;
+  }
+  .legend {
+    display: grid; grid-template-columns: 1fr; gap: 6px;
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .legend .item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .legend .swatch { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+  .legend .symbol {
+    width: 13px; text-align: center; font-family: var(--font-mono); color: var(--text); flex-shrink: 0;
+  }
+
+  /* Room boxes are auto-sized to hold the full wrapped room name (see the
+     box-sizing block in the script) - the label lives INSIDE the shape now,
+     not placed beside it, so it is never dropped. Text color flips between
+     dark (on the light/pastel sector-fill boxes - the common "visited room"
+     case) and light (on the deliberately dark frontier/ambiguous/ghost
+     fills) so it stays legible either way, same idea as the preview app's
+     MapView.tsx node styling (dark text on a colored node). */
+  text.roomlabel {
+    fill: #12141a; font-size: 10px; font-weight: 600; pointer-events: none;
+    user-select: none; text-anchor: middle;
+  }
+  text.roomlabel.on-dark { fill: #e7ebf3; }
+  text.zlabel { fill: #12141a; font-size: 10px; font-weight: 700; pointer-events: none; }
+  text.zlabel.on-dark { fill: #cfd5e2; }
+  .room-rect { stroke: var(--map-bg); stroke-width: 1; cursor: pointer; }
+  .room-rect:hover { stroke: #ffffff; stroke-width: 1.6; }
+  .room-rect.frontier { fill: var(--frontier); opacity: 0.6; }
+  .room-rect.ambiguous { fill: #3a3220; stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 3 2; }
+  /* Cross-zone neighbor ghost node: a discovered room that belongs to a
+     different zone than the one on screen, rendered just past this zone's
+     edge and connected by a dashed link - clicking it switches the map to
+     that zone (see computeGhosts/jumpToRoom). Visually distinct from the
+     grey in-zone frontier ghost: cool violet tone + dashed border + a
+     small "zone N" badge, since it means "elsewhere", not "unvisited here". */
+  .room-rect.ghost { fill: #232840; stroke: #5c6aa0; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.92; }
+  .room-rect.ghost:hover { stroke: #8fa0f0; }
+  .room-rect.selected { stroke: #ffffff; stroke-width: 2.5; }
+  .edge { stroke: #3a4150; stroke-width: 1; }
+  .edge.cross-zone { stroke: #5c6aa0; stroke-dasharray: 4 3; stroke-width: 1.2; }
+  .zone-badge-bg { fill: #171a24; stroke: #5c6aa0; stroke-width: 1; }
+  .zone-badge-text { fill: #a9b4e0; font-size: 9px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+
+  .search-wrap { position: relative; }
+  #searchBox {
+    width: 190px; font-family: inherit;
+  }
+  #searchBox::placeholder { color: var(--muted); }
+  .search-results {
+    position: absolute; top: calc(100% + 4px); left: 0; width: 260px; z-index: 20;
+    background: var(--panel-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    max-height: 260px; overflow-y: auto;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+  .search-results .sr-item { padding: 7px 10px; font-size: 12.5px; cursor: pointer; }
+  .search-results .sr-item:hover { background: var(--border-soft); }
+  .desc-text {
+    /* Full text, always expanded - no nested scroll box. The sidebar itself
+       (#sidebar, overflow-y: auto) is the only scroll container in the
+       panel; a description never gets its own inner scrollbar. */
+    white-space: pre-line; font-size: 14px; color: var(--text); margin: 4px 0 10px 0;
+  }
+  .exit-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .exit-link:hover { color: #f0cd6e; }
+  .exit-link.disabled { color: var(--muted); cursor: default; text-decoration: none; }
+  .current-ring-box {
+    fill: none; stroke: var(--accent); stroke-width: 2;
+    transform-box: fill-box; transform-origin: 50% 50%;
+    animation: pulseBox 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseBox {
+    0% { transform: scale(1); opacity: 1; }
+    70% { transform: scale(1.07); opacity: 0.12; }
+    100% { transform: scale(1.07); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .current-ring-box { animation: none; opacity: 0.85; }
+  }
+  .ambig-mark { fill: var(--accent); font-size: 11px; font-weight: 700; pointer-events: none; }
+  .sighting-dot { fill: var(--danger); stroke: var(--map-bg); stroke-width: 0.6; }
+</style>
+
+<div id="app">
+  <header>
+    <h1>Journey Map</h1>
+    <label>Zone
+      <select id="zoneSelect"></select>
+    </label>
+    <label>Layer (z)
+      <button id="zDown">-</button>
+      <span id="zLabel">0</span>
+      <button id="zUp">+</button>
+    </label>
+    <label><input type="checkbox" id="autoFollow" checked> Auto-follow</label>
+    <button id="resetView">Reset view</button>
+    <div class="search-wrap">
+      <input type="text" id="searchBox" placeholder="Search discovered rooms...">
+      <div id="searchResults" class="search-results" hidden></div>
+    </div>
+    <span id="status">loading...</span>
+  </header>
+  <main>
+    <div id="mapwrap">
+      <svg id="map" viewBox="0 0 800 600">
+        <g id="viewport">
+          <g id="edges"></g>
+          <g id="rooms"></g>
+          <g id="badges"></g>
+          <g id="markers"></g>
+        </g>
+      </svg>
+    </div>
+    <div id="resizer" title="Drag to resize"></div>
+    <div id="sidebar">
+      <div id="detail"><h2>No selection</h2><div class="row empty">Click a room, or wait to localize.</div></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Same palette as the preview app's sectorColors.ts, kept in sync by eye
+  // (this file has no dependency on that one - single-file viewer rule).
+  var SECTOR_COLORS = {
+    INSIDE: "#c9b48a", CITY: "#bdbdbd", FIELD: "#9bd17a", FOREST: "#5fa85f",
+    HILLS: "#c2a86a", MOUNTAIN: "#a89a86", WATER_SWIM: "#7fb6e0",
+    WATER_NOSWIM: "#4f8fc9", UNDERWATER: "#3a6fa0", FLYING: "#d7c7f0"
+  };
+
+  // Direction vectors matching the backend's per-zone grid convention
+  // (journey_map.py DIR_VECTORS) - used only to place cross-zone ghost
+  // nodes one grid step out from the room that holds the out-of-zone exit;
+  // the ghost's OWN zone's coordinates are meaningless here; what matters is
+  // "one step past the room you're standing in, in the direction you'd walk".
+  var DIR_VECTORS = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+
+  // --- Room box sizing ---------------------------------------------------
+  // CELL/ROOM_SIZE (a fixed small square plus an externally-placed label
+  // that got silently dropped when nothing fit - see git history) are gone.
+  // The room name lives INSIDE the box now, so the box is sized to fit it:
+  // every discovered room always shows its full name, wrapped, never
+  // dropped. All boxes in a given frame share one size (recomputed every
+  // render() from whatever's on screen) - a uniform-but-larger grid cell,
+  // like the preview app's React Flow zone map (MapView.tsx NODE_W/NODE_H),
+  // rather than per-room variable boxes: grid neighbors are adjacent, and a
+  // shared box+gutter size is what guarantees no box ever overlaps another
+  // box or edge, with zero extra collision bookkeeping.
+  var BOX_FONT = 10;            // starting font size - shrinking is a 2nd resort
+  var BOX_FONT_FLOOR = 7.5;     // never shrink smaller than this
+  var BOX_PAD_X = 10, BOX_PAD_Y = 9;
+  var BOX_MIN_W = 80, BOX_MIN_H = 42;   // floor so short names aren't cramped
+  var WRAP_TARGET_W = 168;      // interior text width budget before wrap/shrink
+  var LABEL_LINE_GAP = 2;
+  var MAX_LABEL_LINES = 3;      // wrap up to this many lines before shrinking font
+  var GUTTER_X = 18, GUTTER_Y = 18;     // gap between adjacent box edges
+
+  // Recomputed every render() by computeBoxMetrics(); centerOnZone() (called
+  // right after render() everywhere except the "Reset view" button, which
+  // relies on the previous frame's values) reads these to place the camera.
+  var currentPitchX = BOX_MIN_W + GUTTER_X, currentPitchY = BOX_MIN_H + GUTTER_Y;
+  var currentBoxW = BOX_MIN_W, currentBoxH = BOX_MIN_H;
+
+  var world = null;          // { rooms:{id:{...}}, mobs:{id:{...}}, objs:{id:{...}}, meta }
+  var journey = null;        // { current, candidates, visited, sightings, updated_iso }
+  var selectedZone = null;
+  var activeZ = 0;
+  var selectedRoom = null;
+  var autoFollow = true;
+  var lastUpdatedIso = null;
+  var staleSince = null;
+  // Recomputed every render() - "discovered" = visited + frontier only, NOT
+  // ambiguous candidates. Backs the search box, the exits-list reveal/link
+  // gating in the detail panel, AND the cross-zone ghost gating, so fog of
+  // war stays intact everywhere a room name could otherwise leak.
+  var lastDiscoveredSet = new Set();
+
+  var svg = document.getElementById("map");
+  var viewport = document.getElementById("viewport");
+  var edgesG = document.getElementById("edges");
+  var roomsG = document.getElementById("rooms");
+  var badgesG = document.getElementById("badges");
+  var markersG = document.getElementById("markers");
+  var statusEl = document.getElementById("status");
+  var zoneSelect = document.getElementById("zoneSelect");
+  var zLabel = document.getElementById("zLabel");
+  var searchBox = document.getElementById("searchBox");
+  var searchResults = document.getElementById("searchResults");
+
+  var panX = 0, panY = 0, scale = 1;
+  // dragCandidate: a pointer is down and might turn into a pan-drag.
+  // dragging: it crossed DRAG_THRESHOLD and IS a pan-drag now.
+  // Pointer capture is deliberately only requested once we know it's a real
+  // drag (see pointermove below) - capturing eagerly on every pointerdown
+  // was the root cause of the "clicking a room does nothing" bug: Chromium
+  // retargets the synthesized "click" event to whichever element holds
+  // pointer capture, so an eager svg.setPointerCapture() on pointerdown
+  // silently redirected every room click's "click" event from the room
+  // <rect> to the <svg>, and the room's own click listener never ran.
+  var dragging = false, dragCandidate = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+  var DRAG_THRESHOLD = 4; // px in screen space, absorbs normal mouse jitter on a click
+
+  function applyTransform() {
+    viewport.setAttribute("transform",
+      "translate(" + panX + "," + panY + ") scale(" + scale + ")");
+  }
+
+  svg.addEventListener("pointerdown", function (e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    dragCandidate = true;
+    dragging = false;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    panStartX = panX; panStartY = panY;
+  });
+  svg.addEventListener("pointermove", function (e) {
+    if (!dragCandidate) return;
+    var dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+    if (!dragging) {
+      if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      dragging = true;
+      svg.classList.add("dragging");
+      svg.setPointerCapture(e.pointerId);
+    }
+    panX = panStartX + dx;
+    panY = panStartY + dy;
+    applyTransform();
+  });
+  svg.addEventListener("pointerup", function (e) {
+    dragCandidate = false;
+    dragging = false;
+    svg.classList.remove("dragging");
+  });
+  svg.addEventListener("pointercancel", function () {
+    dragCandidate = false;
+    dragging = false;
+    svg.classList.remove("dragging");
+  });
+  svg.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var factor = e.deltaY < 0 ? 1.1 : 0.9;
+    scale = Math.min(6, Math.max(0.2, scale * factor));
+    applyTransform();
+  }, { passive: false });
+
+  document.getElementById("resetView").addEventListener("click", function () {
+    panX = 0; panY = 0; scale = 1;
+    applyTransform();
+    centerOnZone();
+  });
+  document.getElementById("autoFollow").addEventListener("change", function (e) {
+    autoFollow = e.target.checked;
+  });
+  document.getElementById("zUp").addEventListener("click", function () { activeZ += 1; render(); });
+  document.getElementById("zDown").addEventListener("click", function () { activeZ -= 1; render(); });
+  zoneSelect.addEventListener("change", function () {
+    selectedZone = zoneSelect.value === "" ? null : Number(zoneSelect.value);
+    activeZ = 0;
+    render();
+    centerOnZone();
+  });
+
+  // Draggable map/panel divider (item 5). Sidebar width persists across
+  // reloads in localStorage; the map reflows for free because #mapwrap is
+  // the flex:1 sibling of #sidebar inside the same flex row.
+  var resizer = document.getElementById("resizer");
+  var sidebarEl = document.getElementById("sidebar");
+  var SIDEBAR_WIDTH_KEY = "journeyMap.sidebarWidth";
+  var MIN_SIDEBAR_WIDTH = 240, MAX_SIDEBAR_WIDTH = 640;
+  var resizingPanel = false, resizeStartX = 0, resizeStartWidth = 0;
+
+  function applySidebarWidth(w) {
+    w = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, w));
+    sidebarEl.style.width = w + "px";
+  }
+
+  (function restoreSidebarWidth() {
+    var saved = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    if (saved && !isNaN(saved)) applySidebarWidth(saved);
+  })();
+
+  resizer.addEventListener("pointerdown", function (e) {
+    resizingPanel = true;
+    resizer.classList.add("dragging");
+    resizeStartX = e.clientX;
+    resizeStartWidth = sidebarEl.getBoundingClientRect().width;
+    resizer.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  resizer.addEventListener("pointermove", function (e) {
+    if (!resizingPanel) return;
+    // sidebar is right of the resizer, so dragging left grows it
+    applySidebarWidth(resizeStartWidth - (e.clientX - resizeStartX));
+  });
+  resizer.addEventListener("pointerup", function (e) {
+    if (!resizingPanel) return;
+    resizingPanel = false;
+    resizer.classList.remove("dragging");
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarEl.getBoundingClientRect().width));
+  });
+  resizer.addEventListener("pointercancel", function () {
+    resizingPanel = false;
+    resizer.classList.remove("dragging");
+  });
+
+  function el(tag, attrs) {
+    var e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function makeText(x, y, cls, txt) {
+    var t = el("text", { class: cls, x: x, y: y });
+    t.textContent = txt;
+    return t;
+  }
+
+  function normalizeExitLetters(exits) {
+    return Object.keys(exits || {}).sort();
+  }
+
+  function computeFrontier(visitedSet) {
+    var frontier = new Set();
+    visitedSet.forEach(function (rid) {
+      var r = world.rooms[rid];
+      if (!r) return;
+      Object.keys(r.exits).forEach(function (dir) {
+        var target = String(r.exits[dir]);
+        if (!visitedSet.has(target) && world.rooms[target]) frontier.add(target);
+      });
+    });
+    return frontier;
+  }
+
+  function populateZoneSelector(discoveredZones) {
+    var zones = Array.from(discoveredZones).sort(function (a, b) { return a - b; });
+    // zoneSelect is a plain HTML <select>, not SVG - build it via innerHTML.
+    zoneSelect.innerHTML = zones.map(function (z) {
+      return '<option value="' + z + '">Zone ' + z + '</option>';
+    }).join("");
+    if (selectedZone !== null && zones.indexOf(selectedZone) !== -1) {
+      zoneSelect.value = String(selectedZone);
+    } else if (zones.length) {
+      selectedZone = zones[0];
+      zoneSelect.value = String(selectedZone);
+    }
+  }
+
+  function centerOnZone() {
+    if (selectedZone === null) return;
+    // Center on what's actually DISCOVERED (and therefore drawn), not the
+    // zone's full static layout - a zone typically has dozens of rooms the
+    // player hasn't found yet, and centering on all of them (as the old
+    // small-CELL version effectively did, harmlessly, since the offset was
+    // a few px) pulls the camera away from the handful of rooms actually on
+    // screen once boxes are this much bigger, sometimes clipping them
+    // entirely. lastDiscoveredSet is the same visited+frontier set render()
+    // draws from (kept fresh every render(), zone-agnostic - safe to read
+    // here even on the rare call that precedes this frame's render()).
+    var xs = [], ys = [];
+    Object.keys(world.rooms).forEach(function (rid) {
+      var r = world.rooms[rid];
+      if (r.zone_number === selectedZone && r.z === activeZ && lastDiscoveredSet.has(rid)) {
+        xs.push(r.x); ys.push(r.y);
+        // Also reserve space for any cross-zone ghost slot this room's
+        // exits would place one step out (see computeGhosts), so a
+        // discovered neighbor in another zone isn't clipped at the edge.
+        Object.keys(r.exits).forEach(function (dir) {
+          var vec = DIR_VECTORS[dir];
+          if (!vec) return;
+          var targetId = String(r.exits[dir]);
+          var target = world.rooms[targetId];
+          if (target && target.zone_number !== selectedZone && lastDiscoveredSet.has(targetId)) {
+            xs.push(r.x + vec[0]); ys.push(r.y + vec[1]);
+          }
+        });
+      }
+    });
+    if (!xs.length) {
+      // Nothing discovered yet in this zone/layer (e.g. very first render,
+      // before lastDiscoveredSet is populated) - fall back to the full
+      // static layout so the camera still lands somewhere sane.
+      Object.keys(world.rooms).forEach(function (rid) {
+        var r = world.rooms[rid];
+        if (r.zone_number === selectedZone && r.z === activeZ) { xs.push(r.x); ys.push(r.y); }
+      });
+    }
+    if (!xs.length) return;
+    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+    var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+    var vb = svg.viewBox.baseVal;
+
+    // Boxes are much bigger now than the old fixed 16px squares (see the
+    // box-sizing block above), so a discovered cluster can legitimately be
+    // wider than the fixed 800x600 viewBox at scale 1 - shrink (never
+    // enlarge past 1x) to fit it all in, so nothing needed to answer "what's
+    // around me" is clipped by default; the user can still zoom in further
+    // with the wheel from there.
+    var spanX = (maxX - minX) * currentPitchX + currentBoxW;
+    var spanY = (maxY - minY) * currentPitchY + currentBoxH;
+    var fitScale = Math.min(vb.width / spanX, vb.height / spanY, 1);
+    if (isFinite(fitScale) && fitScale > 0) {
+      scale = Math.max(0.2, fitScale * 0.92); // small margin so edge boxes aren't flush against the pane
+    }
+
+    var cx = ((minX + maxX) / 2) * currentPitchX, cy = ((minY + maxY) / 2) * currentPitchY;
+    panX = vb.width / 2 - cx * scale;
+    panY = vb.height / 2 - cy * scale;
+    applyTransform();
+  }
+
+  // --- Label text measurement/wrap ---------------------------------------
+  var labelMeasureCanvas = document.createElement("canvas");
+  var labelMeasureCtx = labelMeasureCanvas.getContext("2d");
+  var labelWidthCache = {};
+
+  function measureLabelWidth(text, fontSize) {
+    var key = fontSize.toFixed(2) + ":" + text;
+    var cached = labelWidthCache[key];
+    if (cached !== undefined) return cached;
+    labelMeasureCtx.font = "600 " + fontSize.toFixed(2) + "px "
+      + "-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+    var w = labelMeasureCtx.measureText(text).width;
+    labelWidthCache[key] = w;
+    return w;
+  }
+
+  function truncateToWidth(text, fontSize, maxWidth) {
+    if (measureLabelWidth(text, fontSize) <= maxWidth) return text;
+    var lo = 1, hi = text.length;
+    while (lo < hi) {
+      var mid = Math.ceil((lo + hi) / 2);
+      var candidate = text.slice(0, mid) + "...";
+      if (measureLabelWidth(candidate, fontSize) <= maxWidth) lo = mid; else hi = mid - 1;
+    }
+    return text.slice(0, lo) + "...";
+  }
+
+  function greedyWrap(text, fontSize, maxWidth) {
+    var words = text.split(" ").filter(function (w) { return w.length; });
+    if (!words.length) return [text];
+    var lines = [], cur = words[0];
+    for (var i = 1; i < words.length; i++) {
+      var attempt = cur + " " + words[i];
+      if (measureLabelWidth(attempt, fontSize) <= maxWidth) {
+        cur = attempt;
+      } else {
+        lines.push(cur);
+        cur = words[i];
+      }
+    }
+    lines.push(cur);
+    return lines;
+  }
+
+  // The full room name is the normal case, wrapped (never truncated) as the
+  // default: try the starting font first, and only shrink (down to
+  // BOX_FONT_FLOOR) if that name genuinely needs more than MAX_LABEL_LINES
+  // lines at the wrap width budget. Ellipsis truncation is a last resort,
+  // reserved for the rare pathological title (this MUD has room names 50+
+  // chars long, and at least one with raw "@[f511]"-style color-code
+  // fragments baked into the title from upstream parsing) - not something
+  // the normal wrap/shrink budget should be sized around.
+  function fontNeededFor(name) {
+    for (var f = BOX_FONT; f >= BOX_FONT_FLOOR; f -= 0.5) {
+      if (greedyWrap(name, f, WRAP_TARGET_W).length <= MAX_LABEL_LINES) return f;
+    }
+    return BOX_FONT_FLOOR;
+  }
+
+  function wrapAtFont(name, fontSize) {
+    var lines = greedyWrap(name, fontSize, WRAP_TARGET_W);
+    if (lines.length > MAX_LABEL_LINES) {
+      lines = lines.slice(0, MAX_LABEL_LINES);
+      lines[MAX_LABEL_LINES - 1] = truncateToWidth(lines[MAX_LABEL_LINES - 1], fontSize, WRAP_TARGET_W);
+    }
+    var width = 0;
+    lines.forEach(function (l) { width = Math.max(width, measureLabelWidth(l, fontSize)); });
+    return { lines: lines, width: width };
+  }
+
+  // One box size for the whole frame - "uniform-but-larger cells sized for
+  // wrapped text" (see box-sizing comment above) - computed from whatever
+  // room + cross-zone-ghost names are actually on screen right now, so a
+  // sparse zone gets a tighter grid and a zone with long names (Midgaard's
+  // "The Entrance Hall To The Guild Of Swordsmen" et al) gets a roomier one.
+  function computeBoxMetrics(inView, ghostList) {
+    var names = [];
+    inView.forEach(function (rid) {
+      names.push((world.rooms[rid].name || "").trim() || "(untitled)");
+    });
+    ghostList.forEach(function (g) {
+      names.push((g.name || "").trim() || "(untitled)");
+    });
+    if (!names.length) names.push("(untitled)");
+
+    var frameFont = BOX_FONT;
+    names.forEach(function (name) {
+      var f = fontNeededFor(name);
+      if (f < frameFont) frameFont = f;
+    });
+
+    var wrapCache = {};
+    var maxTextW = 0, maxLines = 1;
+    names.forEach(function (name) {
+      if (!wrapCache[name]) wrapCache[name] = wrapAtFont(name, frameFont);
+      maxTextW = Math.max(maxTextW, wrapCache[name].width);
+      maxLines = Math.max(maxLines, wrapCache[name].lines.length);
+    });
+
+    var lineHeight = frameFont + LABEL_LINE_GAP;
+    var boxW = Math.max(BOX_MIN_W, Math.ceil(maxTextW + BOX_PAD_X * 2));
+    var boxH = Math.max(BOX_MIN_H, Math.ceil(maxLines * lineHeight + BOX_PAD_Y * 2));
+    return { font: frameFont, lineHeight: lineHeight, boxW: boxW, boxH: boxH, wrapCache: wrapCache };
+  }
+
+  // --- Cross-zone ghost neighbors ------------------------------------
+  // The map only ever drew the selected zone, so standing at "The Entrance
+  // To The Newbie Zone" you couldn't see the already-discovered "Great
+  // Field Of Midgaard" one step behind you, just because it's a different
+  // zone. For every rendered room's exit that leads to a DIFFERENT zone,
+  // if that target is discovered (visited or frontier - same fog-of-war
+  // gate as everything else), place a ghost node one grid step out from the
+  // room holding that exit, in the exit's own direction - not at the
+  // target's coordinates in ITS zone's grid, which would be meaningless
+  // here (each zone has its own independent direction-vector grid).
+  function computeGhosts(inView, visitedSet) {
+    var ghosts = new Map();
+    var edges = [];
+    inView.forEach(function (rid) {
+      var r = world.rooms[rid];
+      Object.keys(r.exits).forEach(function (dir) {
+        if (dir === "u" || dir === "d") return; // badges, not spatial neighbors
+        var targetId = String(r.exits[dir]);
+        if (targetId === "-1") return;
+        var tr = world.rooms[targetId];
+        if (!tr) return;
+        if (tr.zone_number === r.zone_number) return; // same-zone: normal edge
+        if (!lastDiscoveredSet.has(targetId)) return; // fog of war
+        if (!ghosts.has(targetId)) {
+          var vec = DIR_VECTORS[dir] || [0, 0];
+          ghosts.set(targetId, {
+            id: targetId, x: r.x + vec[0], y: r.y + vec[1],
+            name: tr.name, sector: tr.sector, zone: tr.zone_number,
+            visited: visitedSet.has(targetId)
+          });
+        }
+        edges.push({ from: rid, to: targetId });
+      });
+    });
+    return { ghosts: Array.from(ghosts.values()), edges: edges };
+  }
+
+  function drawRoomBox(spec, metrics) {
+    var boxW = metrics.boxW, boxH = metrics.boxH, font = metrics.font, lineHeight = metrics.lineHeight;
+    var x = spec.cx - boxW / 2, y = spec.cy - boxH / 2;
+
+    var cls = "room-rect";
+    var isLightFill = false;
+    if (spec.ghost) {
+      cls += " ghost";
+    } else if (spec.ambiguous) {
+      cls += " ambiguous";
+    } else if (spec.frontier) {
+      cls += " frontier";
+    } else {
+      isLightFill = true;
+    }
+    if (spec.selected) cls += " selected";
+
+    var rectAttrs = { class: cls, x: x, y: y, width: boxW, height: boxH, rx: 6, "data-room": spec.rid };
+    if (isLightFill) rectAttrs.fill = SECTOR_COLORS[spec.sector] || "#888";
+    var rect = el("rect", rectAttrs);
+    rect.addEventListener("click", function () {
+      if (spec.ghost) { jumpToRoom(spec.rid); } else { selectRoom(spec.rid); }
+    });
+    roomsG.appendChild(rect);
+
+    // Label - always drawn, full wrapped name, centered inside the box.
+    var name = (spec.name || "").trim() || "(untitled)";
+    var wrapped = metrics.wrapCache[name] || wrapAtFont(name, font);
+    var lines = wrapped.lines;
+    var totalH = lines.length * lineHeight;
+    var startY = spec.cy - totalH / 2 + font * 0.78;
+    var labelCls = "roomlabel" + (isLightFill ? "" : " on-dark");
+    var t = el("text", { class: labelCls, x: spec.cx, y: startY });
+    if (font !== BOX_FONT) t.setAttribute("font-size", font.toFixed(2));
+    lines.forEach(function (line, i) {
+      var tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+      tspan.setAttribute("x", spec.cx);
+      tspan.setAttribute("dy", i === 0 ? 0 : lineHeight);
+      tspan.textContent = line;
+      t.appendChild(tspan);
+    });
+    badgesG.appendChild(t);
+
+    if (spec.ghost) {
+      // Zone badge chip above the box - names which zone this neighbor
+      // belongs to; clicking the node (handled above) jumps there.
+      var badgeText = "zone " + spec.zone;
+      var bw = measureLabelWidth(badgeText, 9) + 12;
+      var bh = 15;
+      var bx = spec.cx - bw / 2, by = y - bh - 4;
+      badgesG.appendChild(el("rect", { class: "zone-badge-bg", x: bx, y: by, width: bw, height: bh, rx: 7 }));
+      badgesG.appendChild(el("text", { class: "zone-badge-text", x: spec.cx, y: by + bh - 4 })).textContent = badgeText;
+      return; // ghosts are a preview of elsewhere - no exit/sighting badges
+    }
+
+    if (spec.ambiguous) {
+      badgesG.appendChild(makeText(x + 9, y + boxH - 7, "ambig-mark", "?"));
+    }
+    if (spec.hasUp) {
+      badgesG.appendChild(makeText(x + boxW - 9, y + 12, "zlabel" + (isLightFill ? "" : " on-dark"), "^"));
+    }
+    if (spec.hasDown) {
+      badgesG.appendChild(makeText(x + boxW - 9, y + boxH - 6, "zlabel" + (isLightFill ? "" : " on-dark"), "v"));
+    }
+    if (spec.sightings && spec.sightings.length) {
+      markersG.appendChild(el("circle", { class: "sighting-dot", cx: x + 9, cy: y + 9, r: 3 }));
+    }
+    if (spec.current) {
+      markersG.appendChild(el("rect", {
+        class: "current-ring-box", x: x - 4, y: y - 4, width: boxW + 8, height: boxH + 8, rx: 9
+      }));
+    }
+  }
+
+  function render() {
+    if (!world) return;
+    edgesG.innerHTML = "";
+    roomsG.innerHTML = "";
+    badgesG.innerHTML = "";
+    markersG.innerHTML = "";
+
+    var visitedSet = new Set((journey && journey.visited || []).map(String));
+    var ambiguousSet = new Set(
+      (journey && journey.candidates && journey.candidates.length > 1
+        ? journey.candidates : []).map(String)
+    );
+    var frontier = computeFrontier(visitedSet);
+    var visible = new Set();
+    visitedSet.forEach(function (r) { visible.add(r); });
+    frontier.forEach(function (r) { visible.add(r); });
+    ambiguousSet.forEach(function (r) { visible.add(r); });
+
+    lastDiscoveredSet = new Set();
+    visitedSet.forEach(function (r) { lastDiscoveredSet.add(r); });
+    frontier.forEach(function (r) { lastDiscoveredSet.add(r); });
+
+    // Discoverable zones = any zone touched by visited/frontier/ambiguous rooms.
+    var discoveredZones = new Set();
+    visible.forEach(function (rid) {
+      var r = world.rooms[rid];
+      if (r) discoveredZones.add(r.zone_number);
+    });
+    populateZoneSelector(discoveredZones);
+
+    zLabel.textContent = String(activeZ);
+
+    if (selectedZone === null) {
+      setStatus("no rooms localized yet - walk around", true);
+      return;
+    }
+
+    var inView = Array.from(visible).filter(function (rid) {
+      var r = world.rooms[rid];
+      return r && r.zone_number === selectedZone && r.z === activeZ;
+    });
+
+    var ghostInfo = computeGhosts(inView, visitedSet);
+
+    // Every box this frame (real rooms + ghosts) shares one uniform size -
+    // see computeBoxMetrics - so adjacent grid cells can never collide.
+    var metrics = computeBoxMetrics(inView, ghostInfo.ghosts);
+    currentBoxW = metrics.boxW; currentBoxH = metrics.boxH;
+    currentPitchX = metrics.boxW + GUTTER_X;
+    currentPitchY = metrics.boxH + GUTTER_Y;
+
+    function roomCenter(r) { return { cx: r.x * currentPitchX, cy: r.y * currentPitchY }; }
+
+    // Same-zone edges between two rendered rooms.
+    var drawn = new Set();
+    inView.forEach(function (rid) {
+      var r = world.rooms[rid];
+      var c1 = roomCenter(r);
+      Object.keys(r.exits).forEach(function (dir) {
+        if (dir === "u" || dir === "d") return; // badges, not edges
+        var target = String(r.exits[dir]);
+        if (!visible.has(target)) return;
+        var tr = world.rooms[target];
+        if (!tr || tr.zone_number !== selectedZone || tr.z !== activeZ) return;
+        var key = rid < target ? rid + "-" + target : target + "-" + rid;
+        if (drawn.has(key)) return;
+        drawn.add(key);
+        var c2 = roomCenter(tr);
+        edgesG.appendChild(el("line", { class: "edge", x1: c1.cx, y1: c1.cy, x2: c2.cx, y2: c2.cy }));
+      });
+    });
+
+    // Cross-zone edges to ghost nodes (dashed, distinct color).
+    var ghostById = {};
+    ghostInfo.ghosts.forEach(function (g) { ghostById[g.id] = g; });
+    var drawnGhostEdge = new Set();
+    ghostInfo.edges.forEach(function (e) {
+      var key = e.from + "->" + e.to;
+      if (drawnGhostEdge.has(key)) return;
+      drawnGhostEdge.add(key);
+      var r = world.rooms[e.from];
+      var g = ghostById[e.to];
+      if (!r || !g) return;
+      var c1 = roomCenter(r);
+      edgesG.appendChild(el("line", {
+        class: "edge cross-zone",
+        x1: c1.cx, y1: c1.cy, x2: g.x * currentPitchX, y2: g.y * currentPitchY
+      }));
+    });
+
+    inView.forEach(function (rid) {
+      var r = world.rooms[rid];
+      var c = roomCenter(r);
+      var isAmbiguous = ambiguousSet.has(rid);
+      drawRoomBox({
+        cx: c.cx, cy: c.cy, name: r.name, sector: r.sector,
+        frontier: !visitedSet.has(rid) && !isAmbiguous,
+        ambiguous: isAmbiguous,
+        selected: selectedRoom === rid,
+        current: !!(journey && String(journey.current) === rid),
+        hasUp: !!r.exits.u, hasDown: !!r.exits.d,
+        sightings: journey && journey.sightings ? journey.sightings[rid] : null,
+        rid: rid, ghost: false
+      }, metrics);
+    });
+
+    ghostInfo.ghosts.forEach(function (g) {
+      drawRoomBox({
+        cx: g.x * currentPitchX, cy: g.y * currentPitchY, name: g.name, sector: g.sector,
+        frontier: !g.visited, ambiguous: false, selected: selectedRoom === g.id, current: false,
+        hasUp: false, hasDown: false, sightings: null, rid: g.id, ghost: true, zone: g.zone
+      }, metrics);
+    });
+
+    var statusText = inView.length + " rooms in view";
+    if (ghostInfo.ghosts.length) statusText += " + " + ghostInfo.ghosts.length + " cross-zone";
+    statusText += " (zone " + selectedZone + ", z=" + activeZ + ")";
+    setStatus(statusText, false);
+    renderDetail();
+  }
+
+  function selectRoom(rid) {
+    // Plain map click: select in place, no re-centering (the room is
+    // already on screen - don't yank the user's pan/zoom around).
+    selectedRoom = rid;
+    render();
+  }
+
+  function jumpToRoom(rid) {
+    // Used by search results, exit links, and cross-zone ghost clicks: the
+    // target may be off-screen or in a different zone/z-layer, so select
+    // it, switch to its zone/layer, and center the view on it.
+    rid = String(rid);
+    var r = world.rooms[rid];
+    if (!r) return;
+    selectedRoom = rid;
+    selectedZone = r.zone_number;
+    activeZ = r.z;
+    render();
+    centerOnZone();
+  }
+  window.__jmJumpTo = jumpToRoom;
+
+  function renderDetail() {
+    var detail = document.getElementById("detail");
+    var rid = selectedRoom || (journey && journey.current ? String(journey.current) : null);
+    if (!rid || !world.rooms[rid]) {
+      detail.innerHTML = "<h2>No selection</h2><div class='row empty'>Click a room, or search, to see details.</div>";
+      return;
+    }
+    var r = world.rooms[rid];
+    var html = "<h2>" + escapeHtml(r.name || "(untitled)") + "</h2>";
+    html += "<div class='meta-line'>#" + rid + " &middot; zone " + r.zone_number + " &middot; " + r.sector + "</div>";
+
+    if (r.desc) {
+      html += "<div class='eyebrow'>Description</div>";
+      html += "<div class='desc-text'>" + escapeHtml(r.desc) + "</div>";
+    }
+
+    if (r.flags && r.flags.length) {
+      html += "<div class='row'><b>Flags</b>: " + escapeHtml(r.flags.join(", ")) + "</div>";
+    }
+
+    if (r.extra_descs && r.extra_descs.length) {
+      html += "<div class='eyebrow'>Extra descriptions</div><ul>";
+      r.extra_descs.forEach(function (ed) {
+        html += "<li><b>" + escapeHtml((ed.keywords || []).join(", ")) + "</b>"
+          + "<div class='desc-text'>" + escapeHtml(ed.desc || "") + "</div></li>";
+      });
+      html += "</ul>";
+    }
+
+    if (r.triggers && r.triggers.length) {
+      html += "<div class='row'><b>Triggers</b>: " + r.triggers.map(escapeHtml).join(", ") + "</div>";
+    }
+
+    html += "<div class='eyebrow'>Exits</div><ul>";
+    normalizeExitLetters(r.exits).forEach(function (dir) {
+      var targetId = String(r.exits[dir]);
+      var targetRoom = world.rooms[targetId];
+      if (targetRoom && lastDiscoveredSet.has(targetId)) {
+        html += "<li>" + dir + " -> <span class='exit-link' onclick='window.__jmJumpTo(\"" + targetId + "\")'>"
+          + escapeHtml(targetRoom.name || "(untitled)") + "</span> "
+          + "<span style='color:var(--muted)'>#" + targetId + "</span></li>";
+      } else {
+        // Target hasn't been discovered (visited/frontier) yet - don't leak
+        // its name or id, keep fog of war intact.
+        html += "<li>" + dir + " -> <span class='exit-link disabled'>(unexplored)</span></li>";
+      }
+    });
+    html += "</ul>";
+
+    var sightings = (journey && journey.sightings && journey.sightings[rid]) || [];
+    html += "<div class='eyebrow'>Sighted mobs</div>";
+    if (sightings.length) {
+      html += "<ul>" + sightings.map(function (s) {
+        return "<li>" + escapeHtml(s.name) + " <span class='row' style='display:inline'>(" + relTime(s.last_seen_iso) + ")</span></li>";
+      }).join("") + "</ul>";
+    } else {
+      html += "<div class='row empty'>none seen yet</div>";
+    }
+
+    var expectedMobs = (r.expected_mobs || []).map(function (mid) {
+      var m = world.mobs[mid];
+      return m ? m.short_desc : null;
+    }).filter(Boolean);
+    html += "<div class='eyebrow'>Expected mobs (zone data)</div>";
+    if (expectedMobs.length) {
+      html += "<ul>" + expectedMobs.map(function (n) { return "<li>" + escapeHtml(n) + "</li>"; }).join("") + "</ul>";
+    } else {
+      html += "<div class='row empty'>none listed</div>";
+    }
+
+    var expectedObjs = (r.expected_objects || []).map(function (oid) {
+      var o = world.objs ? world.objs[oid] : null;
+      return o ? o.short_desc : null;
+    }).filter(Boolean);
+    html += "<div class='eyebrow'>Expected objects (zone data)</div>";
+    if (expectedObjs.length) {
+      html += "<ul>" + expectedObjs.map(function (n) { return "<li>" + escapeHtml(n) + "</li>"; }).join("") + "</ul>";
+    } else {
+      html += "<div class='row empty'>none listed</div>";
+    }
+
+    detail.innerHTML = html;
+  }
+
+  function relTime(iso) {
+    if (!iso) return "unknown";
+    var ms = Date.now() - new Date(iso).getTime();
+    var s = Math.floor(ms / 1000);
+    if (s < 60) return s + "s ago";
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + "m ago";
+    var h = Math.floor(m / 60);
+    return h + "h ago";
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function setStatus(text, stale) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle("stale", !!stale);
+  }
+
+  function buildLegend() {
+    var legend = document.getElementById("legend");
+    var items = [
+      { color: "#bdbdbd", label: "visited room (fill color = sector)" },
+      { color: "#4a5060", label: "frontier: known exit, not yet visited" },
+      { color: "#3a3220", label: "ambiguous localization candidate (dashed, shows ?)" },
+      { color: "#232840", label: "cross-zone neighbor (dashed) - click to switch to its zone" },
+      { color: "#e0b84f", label: "current room (pulsing outline)" },
+      { color: "#d9704f", label: "mob sighted here (red dot)" },
+      { symbol: "^ / v", label: "room has an up / down exit" }
+    ];
+    legend.innerHTML = items.map(function (it) {
+      if (it.symbol) {
+        return '<div class="item"><span class="symbol">' + it.symbol + '</span>' + it.label + '</div>';
+      }
+      return '<div class="item"><span class="swatch" style="background:' + it.color + '"></span>' + it.label + '</div>';
+    }).join("");
+  }
+
+  function discoveredRoomsList() {
+    var list = [];
+    lastDiscoveredSet.forEach(function (rid) {
+      var r = world.rooms[rid];
+      if (r) list.push({ id: rid, name: r.name || "" });
+    });
+    return list;
+  }
+
+  function setupSearch() {
+    searchBox.addEventListener("input", function () {
+      var q = searchBox.value.trim().toLowerCase();
+      if (!q) {
+        searchResults.hidden = true;
+        searchResults.innerHTML = "";
+        return;
+      }
+      var matches = discoveredRoomsList().filter(function (item) {
+        return item.id === q || item.name.toLowerCase().indexOf(q) !== -1;
+      }).slice(0, 15);
+      if (!matches.length) {
+        searchResults.innerHTML = '<div class="sr-item" style="color:var(--muted)">no matches among discovered rooms</div>';
+      } else {
+        searchResults.innerHTML = matches.map(function (m) {
+          return '<div class="sr-item" data-rid="' + m.id + '">' + escapeHtml(m.name || "(untitled)")
+            + ' <span style="color:var(--muted)">#' + m.id + '</span></div>';
+        }).join("");
+      }
+      searchResults.hidden = false;
+    });
+
+    searchResults.addEventListener("click", function (e) {
+      var item = e.target.closest(".sr-item[data-rid]");
+      if (!item) return;
+      jumpToRoom(item.getAttribute("data-rid"));
+      searchBox.value = "";
+      searchResults.hidden = true;
+      searchResults.innerHTML = "";
+    });
+
+    document.addEventListener("click", function (e) {
+      if (e.target !== searchBox && !searchResults.contains(e.target)) {
+        searchResults.hidden = true;
+      }
+    });
+  }
+
+  async function loadWorld() {
+    var res = await fetch("/world.json");
+    world = await res.json();
+  }
+
+  async function pollJourney() {
+    try {
+      var res = await fetch("/journey.json");
+      journey = await res.json();
+      if (journey.updated_iso !== lastUpdatedIso) {
+        lastUpdatedIso = journey.updated_iso;
+        staleSince = null;
+      }
+      if (autoFollow && journey.current != null) {
+        var r = world.rooms[String(journey.current)];
+        if (r) {
+          if (selectedZone !== r.zone_number) { selectedZone = r.zone_number; centerOnZone(); }
+          activeZ = r.z;
+        }
+      }
+      render();
+    } catch (e) {
+      setStatus("connection lost, retrying...", true);
+    } finally {
+      setTimeout(pollJourney, 1000);
+    }
+  }
+
+  (async function init() {
+    buildLegend();
+    setupSearch();
+    applyTransform();
+    await loadWorld();
+    pollJourney();
+  })();
+})();
+</script>
