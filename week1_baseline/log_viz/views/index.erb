@@ -1,0 +1,47 @@
+<h1>Sessions</h1>
+
+<% if @sessions.empty? %>
+  <p class="empty">No session logs found in <code><%= settings.sessions_dir %></code>.</p>
+<% else %>
+  <table class="sessions">
+    <thead>
+      <tr>
+        <th>Started</th>
+        <th>Session ID</th>
+        <th>Task</th>
+        <th>Model(s)</th>
+        <th>Iterations</th>
+        <th>Tokens (in / out)</th>
+        <th class="nowrap">Peak ctx</th>
+        <th class="nowrap">Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @sessions.each do |session| %>
+        <tr>
+          <td class="nowrap"><%= format_time(session.started_at) %></td>
+          <td>
+            <a href="/sessions/<%= session.id %>"><%= session.id %></a>
+            <% if session.any_limit_tripped? %><span class="limit-flag" title="a turn tripped a limit">&#9888;</span><% end %>
+          </td>
+          <td class="task">
+            <% if session.task_names.any? %>
+              <span class="task-name"><%= session.task_names.join(", ") %></span>
+            <% else %>
+              <%= truncate(session.task, 90) %>
+            <% end %>
+          </td>
+          <td class="model-list"><%= truncate(session.model_summary, 54) %></td>
+          <td class="nowrap"><%= session.iteration_count %></td>
+          <td class="nowrap"><%= session.total_input_tokens %> / <%= session.total_output_tokens %></td>
+          <td class="nowrap">
+            <% if session.context_window && session.context_window.to_i > 0 %>
+              <%= pct(session.peak_input_tokens, session.context_window) %>%
+            <% else %>&mdash;<% end %>
+          </td>
+          <td class="nowrap"><%= fmt_cost(session.estimated_cost) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

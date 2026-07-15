@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+cd "$(dirname "$0")/../../ruby/06_the_logger"
+bundle exec ruby examples/example.rb

@@ -1,0 +1,178 @@
+<a href="/" class="back">&larr; All sessions</a>
+
+<h1>Session <%= @session.id %></h1>
+<p class="meta">
+  Started <%= format_time(@session.started_at) %>
+</p>
+
+<% if @session.end_reason %>
+  <% if @session.stopped? %>
+    <div class="banner banner-warn">&#9888; stopped: <%= @session.end_reason %></div>
+  <% else %>
+    <div class="banner banner-ok">&#10003; completed</div>
+  <% end %>
+<% end %>
+
+<div class="statstrip">
+  <div class="statstrip-head">
+    <span class="statstrip-model">
+      <%= @session.model_summary %>
+    </span>
+    <span class="statstrip-cost">cost &asymp; <%= fmt_cost(@session.estimated_cost) %></span>
+  </div>
+
+  <% if @session.context_window && @session.context_window.to_i > 0 %>
+    <%= progress_bar(@session.peak_input_tokens, @session.context_window,
+                     label: "Peak context &middot; #{fmt_tokens(@session.peak_input_tokens)} / #{fmt_tokens(@session.context_window)} (#{pct(@session.peak_input_tokens, @session.context_window)}%)") %>
+  <% end %>
+
+  <% largest = @session.largest_turn %>
+  <% if @session.max_turn_tokens && @session.max_turn_tokens.to_i > 0 && largest %>
+    <% tripped = @session.turns.any? { |t| t[:reason] == "max_tokens" } %>
+    <%= progress_bar(largest[:tokens], @session.max_turn_tokens,
+                     label: "Largest turn &middot; #{fmt_tokens(largest[:tokens])} / #{fmt_tokens(@session.max_turn_tokens)} (#{pct_raw(largest[:tokens], @session.max_turn_tokens)}%#{" &#9888; max_tokens" if tripped})",
+                     danger: tripped) %>
+  <% end %>
+
+  <% busiest = @session.busiest_turn %>
+  <% if @session.iteration_max && busiest %>
+    <%= progress_bar(busiest[:iterations], @session.iteration_max,
+                     label: "Iterations &middot; #{busiest[:iterations]} / #{@session.iteration_max} (turn #{busiest[:n]})",
+                     danger: @session.any_limit_tripped? && busiest[:reason] == "max_iterations") %>
+  <% end %>
+
+  <div class="statstrip-total">
+    Session total: <%= fmt_tokens(@session.total_input_tokens) %> tok in
+    &middot; <%= fmt_tokens(@session.total_output_tokens) %> tok out
+    &middot; across <%= @session.turn_count_real %> turn<%= "s" unless @session.turn_count_real == 1 %>
+  </div>
+</div>
+
+<% if @session.cost_breakdown.any? %>
+  <div class="breakdown">
+    <div class="breakdown-title">Cost by task / provider / model</div>
+    <table class="breakdown-table">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Provider</th>
+          <th>Model</th>
+          <th class="nowrap">Calls</th>
+          <th class="nowrap">Tokens</th>
+          <th class="nowrap">Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @session.cost_breakdown.each do |row| %>
+          <tr>
+            <td><%= row[:task] %></td>
+            <td><%= row[:provider] %></td>
+            <td><%= row[:model] %></td>
+            <td class="nowrap"><%= row[:calls] %></td>
+            <td class="nowrap"><%= fmt_tokens(row[:input]) %> / <%= fmt_tokens(row[:output]) %></td>
+            <td class="nowrap"><%= fmt_cost_cell(row[:cost], known: row[:cost_known]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<% if @session.usage_series.length > 1 %>
+  <div class="spark-wrap">
+    <div class="spark-label">input tokens / iteration &middot; peak <%= fmt_tokens(@session.peak_input_tokens) %></div>
+    <%= sparkline(@session.usage_series, max: @session.peak_input_tokens) %>
+  </div>
+<% end %>
+
+<div class="transcript">
+  <% last_iteration = nil %>
+  <% @session.entries.each do |entry| %>
+    <% if entry.type != :turn_end && entry.iteration != last_iteration %>
+      <div class="iteration-marker">Iteration <%= entry.iteration %></div>
+      <% last_iteration = entry.iteration %>
+    <% end %>
+
+    <% if entry.type == :user %>
+      <div class="msg msg-user">
+        <div class="msg-role"><span>User</span></div>
+        <div class="msg-body"><%= text_html(entry.text) %></div>
+      </div>
+    <% elsif entry.type == :compaction %>
+      <div class="divider divider-compaction">
+        &#8635; context compacted &mdash; <%= entry.dropped %> message<%= "s" unless entry.dropped == 1 %> dropped
+      </div>
+    <% elsif entry.type == :turn_end %>
+      <% tripped = @session.limit_reason?(entry.reason) %>
+      <% has_bar = @session.max_turn_tokens.to_i > 0 && entry.tokens %>
+      <div class="turn-strip<%= " danger" if tripped %>">
+        <div class="turn-strip-text">
+          <%= tripped ? "&#9888;" : "&#10003;" %>
+          Turn <%= entry.turn %>
+          &middot; <%= entry.iterations %> iteration<%= "s" unless entry.iterations == 1 %>
+          <% if entry.tokens %>&middot; <%= fmt_tokens(entry.tokens) %> tok<% end %>
+          <% if tripped %>&middot; <%= entry.reason %><% end %>
+        </div>
+        <% if has_bar %>
+          <div class="bar"><div class="<%= tripped ? "bar-fill danger" : "bar-fill" %>" style="width: <%= pct(entry.tokens, @session.max_turn_tokens) %>%"></div></div>
+          <div class="turn-strip-pct"><%= pct_raw(entry.tokens, @session.max_turn_tokens) %>%</div>
+        <% end %>
+      </div>
+    <% elsif entry.type == :plan %>
+      <div class="msg msg-assistant msg-preamble">
+        <div class="msg-role">
+          <span>Plan</span>
+          <span class="usage">before tool call</span>
+        </div>
+        <div class="msg-body"><%= text_html(entry.text) %></div>
+      </div>
+    <% elsif entry.type == :assistant && entry.text.to_s.start_with?("(tool use") %>
+      <div class="tool-marker">
+        <span><%= entry.text %></span>
+        <%= ctx_chip(entry.usage, entry.running_turn_tokens,
+                     context_window: @session.context_window,
+                     max_turn_tokens: @session.max_turn_tokens,
+                     provider: entry.provider, model: entry.model,
+                     cost_usd: entry.cost_usd) %>
+      </div>
+    <% elsif entry.type == :reasoning %>
+      <div class="msg msg-assistant msg-reasoning">
+        <div class="msg-role"><span>Reasoning</span></div>
+        <div class="msg-body">
+          <% if entry.redacted || entry.text.to_s.strip.empty? %>
+            <span class="muted">(reasoning hidden)</span>
+          <% else %>
+            <%= text_html(entry.text) %>
+          <% end %>
+        </div>
+      </div>
+    <% elsif entry.type == :assistant %>
+      <div class="msg msg-assistant">
+        <div class="msg-role">
+          <span>Assistant</span>
+          <span class="usage">
+            <% if entry.stop_reason %>stop: <%= entry.stop_reason %><% end %>
+          </span>
+        </div>
+        <div class="msg-body"><%= text_html(entry.text) %></div>
+        <% if entry.usage %>
+          <div class="msg-foot">
+            <%= ctx_chip(entry.usage, entry.running_turn_tokens,
+                         context_window: @session.context_window,
+                         max_turn_tokens: @session.max_turn_tokens,
+                         provider: entry.provider, model: entry.model,
+                         cost_usd: entry.cost_usd) %>
+          </div>
+        <% end %>
+      </div>
+    <% elsif entry.type == :tool %>
+      <div class="tool-call<%= " tool-error" unless entry.tool_ok %>">
+        <div class="tool-name">
+          &#9881; <%= entry.tool_name %>(<%= format_args(entry.tool_args) %>)
+          <% unless entry.tool_ok %><span class="tool-badge">error</span><% end %>
+        </div>
+        <pre class="tool-result"><%= ansi_html(entry.tool_result) %></pre>
+      </div>
+    <% end %>
+  <% end %>
+</div>

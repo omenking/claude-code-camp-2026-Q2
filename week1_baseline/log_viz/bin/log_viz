@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+require_relative "../lib/log_viz/app"
+
+LogViz::App.run!(
+  port: (ENV["PORT"] || 4567).to_i,
+  bind: ENV.fetch("BIND", "localhost")
+)
