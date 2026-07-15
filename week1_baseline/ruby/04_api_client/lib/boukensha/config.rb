@@ -10,7 +10,7 @@ module Boukensha
     DEFAULT_DIR = File.join(Dir.home, ".boukensha").freeze
 
     # Default prompts shipped alongside this step.
-    PROMPTS_DIR = File.expand_path("../../../prompts", __dir__).freeze
+    PROMPTS_DIR = File.expand_path("../../prompts", __dir__).freeze
 
     attr_reader :dir, :settings
 
