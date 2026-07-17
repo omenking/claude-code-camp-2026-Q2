@@ -1,72 +1,117 @@
 # Step 10 — A Standard Tool Library
 
-Boukensha now ships two built-in tool modules. Instead of manually registering tools, a real coding harness gives the agent a standard library of capabilities out of the box.
+## Build
+gem build boukensha.gemspec
+gem install boukensha-0.10.0.gem
+
+The standard tool library is **MCP**.
+
+Boukensha ships **no tools of its own**. It is an MCP *host*: every tool the
+agent can call comes from an MCP server declared in `settings.yaml`. Want file
+access? Plug in a filesystem server. Want to play a MUD? Plug in
+`mud-manager --mcp`. An agent with an empty `mcp_servers:` block can only talk.
+
+> The directory is still named `10_standard_tool_library` from when this step
+> shipped built-in `Tools::FileSystem` / `Tools::Shell` / `Tools::Mud` modules.
+> Those are deleted. The name is kept so the step ordering and every path that
+> points here still resolve.
 
 ## What's new
 
-### `Boukensha::Tools::FileSystem`
+### `Boukensha::Mcp::Client`
 
-The evolution of step 9's `WorkingDirectory` — same five tools plus one new one. Registers automatically when `working_dir:` is set:
+A minimal MCP-over-stdio client: spawn a server, handshake, `tools/list`,
+`tools/call`. It is server-agnostic — `command` / `args` / `env` is the standard
+stdio transport config, the same triple every MCP host uses.
 
-| Tool | Description |
-|------|-------------|
-| `pwd` | Return the working directory |
-| `list_directory` | List files at a path (default `.`) |
-| `read_file` | Read a file's contents |
-| `write_file` | Write (or create) a file |
-| `delete_file` | Delete a file |
-| `search_files` | **New** — grep for a regex pattern across the working tree, returns `path:line:content` matches |
+### `Boukensha::Tools::Mcp`
 
-All paths are **relative to the working directory**. Absolute paths and `..` traversals that escape the root are rejected with an error string.
-
-### `Boukensha::Tools::Shell`
-
-New module. Registers automatically when `working_dir:` is set:
-
-| Tool | Description |
-|------|-------------|
-| `run_command` | Run a shell command inside the working directory |
-
-Commands run with a configurable timeout and an optional allow-list of permitted executables.
-
-### New `Boukensha.run` / `Boukensha.repl` keyword arguments
+The only file left under `tools/`. Registers a server's discovered tools into a
+registry, optionally scoping their names with a `prefix:`.
 
 ```ruby
-Boukensha.run(
-  task:             "...",
-  working_dir:      "/my/project",
-  allowed_commands: ["ruby", "git", "bundle"],  # nil = allow all (default)
-  shell_timeout:    30                           # seconds, default 30
+Boukensha::Tools::Mcp.register(
+  registry,
+  command: "mud-manager", args: ["--mcp"],
+  env: { "MUD_HOST" => "localhost" },
+  prefix: "tbamud"          # the daemon's `look` registers as `tbamud__look`
 )
 ```
 
-`allowed_commands: nil` permits any executable. Pass an explicit list to lock the agent down:
+Prefixing is applied **client-side**: the server still sees `look` on the wire.
+It exists so two servers can't silently clobber each other's names — a collision
+raises and names the fix.
 
-```ruby
-# Only allow ruby and git — rm, curl, etc. will be rejected
-Boukensha.run(task: "...", allowed_commands: ["ruby", "git"])
+### `mcp_servers:` in `settings.yaml`
+
+Adding a capability is a config edit, not a code change:
+
+```yaml
+mcp_servers:
+  mud:
+    command: mud-manager
+    args:    [--mcp]
+    prefix:  tbamud
+    env:                     # a stdio server's credentials travel by environment
+      MUD_HOST:     your.mud.host
+      MUD_NAME:     Gandalf
+      MUD_PASSWORD: secret
+
+  filesystem:
+    command:  npx
+    args:     [-y, "@modelcontextprotocol/server-filesystem", /tmp]
+    prefix:   fs
+    required: false          # can't start? warn and carry on
 ```
 
-### Direct registration
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `command` | — | Executable to spawn. Resolved by the OS, so a relative path depends on your cwd — nothing hunts for a binary for you. |
+| `args` | `[]` | Its argv. |
+| `env` | `{}` | Extra environment. Servers inherit boukensha's environment; these keys override it. |
+| `prefix` | none | Scopes discovered names (`fs` → `fs__read_file`). |
+| `required` | `true` | `false` downgrades a failure to start into a warning. |
 
-Both modules can be registered manually if you need finer control:
+### What went away
 
-```ruby
-Boukensha::Tools::FileSystem.register(registry, working_dir: "/my/project")
-Boukensha::Tools::Shell.register(registry, working_dir: "/my/project",
-                              timeout: 10, allowed_commands: ["ruby"])
-```
+| Gone | Replaced by |
+|------|-------------|
+| `Tools::FileSystem` (`pwd`, `read_file`, `write_file`, `search_files`, …) | a filesystem MCP server. Trade-off: needs node/npx, and its root is fixed in `args:` instead of tracking `working_dir`. |
+| `Tools::Shell` (`run_command`) | a shell MCP server of your choosing. |
+| `Tools::Mud` (embedded `MudManager::Session`) | the `mud-manager --mcp` daemon, which already wrapped the same `mud_manager` gem. |
+| `Tools::McpMud`, the `mud:` / `working_dir:` / `allowed_commands:` / `shell_timeout:` arguments, `BOUKENSHA_MUD_MODE`, and `mud:` in settings.yaml | one `mcp_servers:` entry. |
+
+The gemspec now declares **no tool dependencies at all** — `mud_manager` went
+with `Tools::Mud`. Servers are separate processes and bring their own.
+
+`working_dir:` survives on `Boukensha.run` / `.repl`, but only as Context
+metadata: it registers nothing.
 
 ## Run the demo
 
 ```sh
-ruby examples/demo.rb
+# Offline, no API key, no live MUD — uses the daemon's built-in fake MUD:
+ruby examples/mcp_mud_demo.rb --dry
+
+# Full run — needs ANTHROPIC_API_KEY and an mcp_servers: mud entry.
+# Launch from the repo root so the example config's relative path resolves:
+BOUKENSHA_DIR=.boukensha ruby week1_baseline/ruby/10_standard_tool_library/examples/example.rb
 
 # or via the global executable pointed at this step:
 BOUKENSHA_PATH=~/Sites/boukensha/10_standard_tool_library boukensha
+```
+
+## Tests
+
+```sh
+rake test
 ```
 
 ## Technical Considerations
 This is just observations we dont want to fix these right now just to perserve current future layers.
 - There could be a case where if a sessions is already is in used for a user they are prompted with Yes or No to kill the session and our agent's/mud_manager doesn't have a way to handle that case.
 - It seems like we need more tool work, as there might not be enough tools to accomplish tasks efficently and mostly are mapping the same task to primitives.
+- Servers spawn **eagerly** at boot: every entry costs a subprocess and a handshake even if the LLM never calls it. Fine at two servers; revisit past that.
+- Non-text MCP content blocks (images, embedded resources) are dropped rather than rendered — they yield an empty string, not an exception. No MUD tool can hit this.
+- The backends advertise every listed parameter as required, which is wrong for third-party servers with genuinely optional params. Fixing it means plumbing `inputSchema["required"]` through `Boukensha::Tool`, which touches all tools.
+- `~/.boukensharc` YAML support (`boukensha_path:` / `boukensha_dir:` keys, plus bare single-line path backward compat) from step 9 was not carried forward into this step's initial rewrite, which silently mis-parsed step-9-era rc files. This step's loader now restores that step-9 behavior verbatim — see [`docs/plans/floating_artifacts/bounkensharc.md`](../../../docs/plans/floating_artifacts/bounkensharc.md) for the incident writeup; keep that doc in mind before rewriting `boukensha_loader.rb` in later steps.

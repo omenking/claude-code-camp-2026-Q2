@@ -12,8 +12,41 @@ tasks:
     #model: gpt-5.4-mini
     prompt_override:
       system: true
-mud:
-  host: localhost
-  port: 4000
-  username: dummyi
-  password: helloworld
+# EVERY tool the agent has comes from this block. boukensha ships none of its
+# own — it is an MCP host, and an empty mcp_servers means an agent that can
+# only talk. Each entry is one server process: command + args + env, the same
+# stdio transport config every MCP host uses.
+mcp_servers:
+  # The MUD. `mud` is not special to boukensha any more — it's just the server
+  # that happens to know telnet and the login dance. Credentials travel by
+  # environment because that is what the stdio transport gives you; the LLM
+  # never sees them, and the session lives in the daemon.
+  #
+  # `command`/`args` are resolved by the OS against the shell's cwd — NOT
+  # against boukensha_dir/boukensha_path from ~/.boukensharc, and boukensha
+  # never chdirs for you. A relative path here only works when you happen to
+  # launch from the repo root. Nothing hunts for the binary on your behalf any
+  # more — that discovery logic died with Tools::McpMud, which is the trade
+  # for the agent not knowing what a MUD is. `mud-manager` is installed on
+  # PATH (the mud_manager gem), so we call it directly instead.
+  # This entry is `required` (the default), so a bad path fails loudly at boot.
+  mud:
+    command: mud-manager
+    args:    [--mcp]
+    prefix:  tbamud          # the daemon's `look` reaches the agent as tbamud__look
+    env:
+      MUD_HOST:     localhost
+      MUD_PORT:     4000
+      MUD_NAME:     dummyi
+      MUD_PASSWORD: helloworld
+
+  # Files. A third-party server nobody wrote boukensha code for — which is the
+  # whole point: file access is a server you plug in, not a feature the agent
+  # was born with. Edit the last arg to change what it can reach.
+  #
+  # required: false so a missing npx is a warning, not a dead agent.
+  filesystem:
+    command:  npx
+    args:     [-y, "@modelcontextprotocol/server-filesystem", /tmp]
+    prefix:   fs
+    required: false

@@ -1,30 +1,33 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 #
-# Step 10 — A Standard Tool Library (MUD demo)
+# Step 10 — The agent owns no tools.
 #
-# Demonstrates Boukensha::Tools::Mud, which registers gameplay tools against
-# a live CircleMUD connection. Connection credentials come from
-# ~/.boukensha/settings.yaml (mud: host/port/username/password) by default.
-# Set BOUKENSHA_DIR to point at a different config directory.
+# There is no `mud:` argument and no tool registration here, because boukensha
+# has nothing of its own to register. Every tool this agent can call arrives
+# from an MCP server listed in settings.yaml's `mcp_servers:` block — the MUD
+# daemon, a filesystem server, anything that speaks MCP. Swapping what the
+# agent can do is a config edit, not a code change.
 #
-# You can still override individual values as keyword arguments:
+#   ruby examples/example.rb
+#   BOUKENSHA_DIR=/path/to/.boukensha ruby examples/example.rb
 #
-#   ruby examples/demo.rb
-#   BOUKENSHA_DIR=iterations/.boukensha ruby examples/demo.rb
+# Point BOUKENSHA_DIR at a config that has an `mcp_servers: mud:` entry (the
+# repo root's .boukensha does), and launch from the repo root so that entry's
+# relative command path resolves.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "boukensha"
 
 cfg = Boukensha.config
-puts "Config: #{cfg}"
+puts "Config:  #{cfg}"
+puts "Servers: #{cfg.mcp_servers.keys.join(', ')}"
 puts "API key set? #{!ENV['ANTHROPIC_API_KEY'].nil?}"
 puts
 
 Boukensha.run(
-  task: "Connect to the MUD, look at your surroundings, check your score, " \
-        "then look at the available exits and tell me what you see.",
-  # system/model/api_key all come from config automatically
-  working_dir: false   # no filesystem tools needed for MUD play
-  # mud: comes from config (settings.yaml mud: block) automatically
+  task: "Look at your surroundings, check your score, " \
+        "then look at the available exits and tell me what you see."
+  # system/model/api_key come from config automatically.
+  # Tools come from mcp_servers — there is nothing to wire up here.
 )

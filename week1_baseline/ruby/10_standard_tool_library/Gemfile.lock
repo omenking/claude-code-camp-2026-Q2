@@ -2,13 +2,11 @@ PATH
   remote: .
   specs:
     boukensha (0.10.0)
-      mud_manager (~> 0.1)
 
 GEM
   remote: https://rubygems.org/
   specs:
     dotenv (3.2.0)
-    mud_manager (0.1.0)
 
 PLATFORMS
   arm64-darwin-23

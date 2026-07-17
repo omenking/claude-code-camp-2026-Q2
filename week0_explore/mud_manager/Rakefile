@@ -1,0 +1,14 @@
+require "rake/testtask"
+
+Rake::TestTask.new(:test) do |t|
+  t.libs << "test" << "lib"
+  t.test_files = FileList["test/test_*.rb"]
+  t.warning = false
+end
+
+desc "Regenerate primitives.json from the canonical Ruby ToolSpec"
+task :spec do
+  sh "ruby bin/mud-manager --dump-spec"
+end
+
+task default: :test

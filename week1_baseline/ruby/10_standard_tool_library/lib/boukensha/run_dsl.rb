@@ -9,5 +9,9 @@ module Boukensha
     def tool(name, description:, parameters: {}, &block)
       @registry.tool(name, description: description, parameters: parameters, &block)
     end
+
+    def tool_names
+      @registry.tool_names
+    end
   end
 end

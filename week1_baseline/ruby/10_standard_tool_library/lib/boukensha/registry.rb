@@ -12,6 +12,10 @@ module Boukensha
       tool
     end
 
+    def tool_names
+      @context.tools.keys
+    end
+
     def dispatch(name, args = {})
       tool = @context.tools[name.to_s]
       raise UnknownToolError, "No tool registered as '#{name}'" unless tool

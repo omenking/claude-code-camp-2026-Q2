@@ -1,0 +1,470 @@
+{
+  "$schema_note": "Generated from MudManager::Primitives via MudManager::Mcp::ToolSpec. Ruby is canonical — regenerate with `mud-manager --dump-spec`. Do not hand-edit.",
+  "version": "0.2.0",
+  "tools": {
+    "look": {
+      "category": "perception",
+      "description": "Look at the current room or at a specific target. Call with NO arguments to describe the current room (do NOT pass target: 'room'). Pass a target to inspect a specific item, mob, or player. Use preposition 'in' to look inside a container, 'at' to inspect, or a direction to peek into an adjacent room.",
+      "args": {
+        "target": {
+          "type": "string",
+          "required": false,
+          "description": "Item, mob, or player to inspect. Omit to describe the current room."
+        },
+        "preposition": {
+          "type": "string",
+          "required": false,
+          "description": "Preposition or direction to look through.",
+          "enum": [
+            "in",
+            "at",
+            "north",
+            "east",
+            "south",
+            "west",
+            "up",
+            "down"
+          ]
+        }
+      }
+    },
+    "examine": {
+      "category": "perception",
+      "description": "Examine a target in detail (more verbose than look).",
+      "args": {
+        "target": {
+          "type": "string",
+          "required": true,
+          "description": "The item, mob, or player to examine"
+        }
+      }
+    },
+    "check": {
+      "category": "perception",
+      "description": "Query information about your character or surroundings.",
+      "args": {
+        "kind": {
+          "type": "string",
+          "required": true,
+          "description": "What to check",
+          "enum": [
+            "score",
+            "inventory",
+            "equipment",
+            "gold",
+            "exits",
+            "time",
+            "weather",
+            "levels",
+            "wimpy",
+            "toggle",
+            "where"
+          ]
+        }
+      }
+    },
+    "move": {
+      "category": "movement",
+      "description": "Move in a compass direction or up/down.",
+      "args": {
+        "direction": {
+          "type": "string",
+          "required": true,
+          "description": "Direction to move",
+          "enum": [
+            "north",
+            "east",
+            "south",
+            "west",
+            "up",
+            "down"
+          ]
+        }
+      }
+    },
+    "flee": {
+      "category": "movement",
+      "description": "Attempt to flee from combat in a random available direction.",
+      "args": {}
+    },
+    "set_position": {
+      "category": "movement",
+      "description": "Change body position. Use 'rest'/'sleep' between fights to recover HP and mana. Must be standing to move or fight.",
+      "args": {
+        "position": {
+          "type": "string",
+          "required": true,
+          "description": "Body position",
+          "enum": [
+            "stand",
+            "sit",
+            "rest",
+            "sleep",
+            "wake"
+          ]
+        }
+      }
+    },
+    "track": {
+      "category": "movement",
+      "description": "Track a mob or player by name, revealing their direction. Requires the Track skill.",
+      "args": {
+        "target": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the mob or player to track"
+        }
+      }
+    },
+    "attack": {
+      "category": "combat",
+      "description": "Attack a target. 'kill' is standard; 'murder' bypasses the mercy check; 'hit' is a one-off strike.",
+      "args": {
+        "target": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the mob or player to attack"
+        },
+        "style": {
+          "type": "string",
+          "required": false,
+          "description": "Attack style",
+          "enum": [
+            "hit",
+            "murder",
+            "kill"
+          ],
+          "default": "kill"
+        }
+      }
+    },
+    "skill_strike": {
+      "category": "combat",
+      "description": "Use a combat skill against a target.",
+      "args": {
+        "skill": {
+          "type": "string",
+          "required": true,
+          "description": "Combat skill",
+          "enum": [
+            "backstab",
+            "bash",
+            "kick",
+            "rescue",
+            "assist"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the mob or player"
+        }
+      }
+    },
+    "consider": {
+      "category": "combat",
+      "description": "Assess a mob's relative strength before fighting. Always consider before attacking an unknown mob.",
+      "args": {
+        "target": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the mob to consider"
+        }
+      }
+    },
+    "say": {
+      "category": "communication",
+      "description": "Speak or emote in the current room.",
+      "args": {
+        "text": {
+          "type": "string",
+          "required": true,
+          "description": "What to say or emote"
+        },
+        "mode": {
+          "type": "string",
+          "required": false,
+          "description": "Speech mode",
+          "enum": [
+            "say",
+            "emote",
+            "reply"
+          ],
+          "default": "say"
+        }
+      }
+    },
+    "tell": {
+      "category": "communication",
+      "description": "Send a private message to a specific player.",
+      "args": {
+        "target": {
+          "type": "string",
+          "required": true,
+          "description": "Player name to message"
+        },
+        "text": {
+          "type": "string",
+          "required": true,
+          "description": "The message"
+        },
+        "mode": {
+          "type": "string",
+          "required": false,
+          "description": "Tell mode",
+          "enum": [
+            "tell",
+            "whisper",
+            "ask"
+          ],
+          "default": "tell"
+        }
+      }
+    },
+    "channel_say": {
+      "category": "communication",
+      "description": "Broadcast a message over a global channel.",
+      "args": {
+        "channel": {
+          "type": "string",
+          "required": true,
+          "description": "Channel",
+          "enum": [
+            "shout",
+            "gossip",
+            "auction",
+            "grats",
+            "holler"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "required": true,
+          "description": "The message to broadcast"
+        }
+      }
+    },
+    "get_item": {
+      "category": "inventory",
+      "description": "Pick up an item from the room or from a container.",
+      "args": {
+        "item": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item to get"
+        },
+        "container": {
+          "type": "string",
+          "required": false,
+          "description": "Container to get it from (optional)"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Number of items to get (optional)"
+        }
+      }
+    },
+    "drop_item": {
+      "category": "inventory",
+      "description": "Drop, donate, or junk an item.",
+      "args": {
+        "item": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item"
+        },
+        "mode": {
+          "type": "string",
+          "required": false,
+          "description": "Drop mode",
+          "enum": [
+            "drop",
+            "donate",
+            "junk"
+          ],
+          "default": "drop"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Number of items (optional)"
+        }
+      }
+    },
+    "put_item": {
+      "category": "inventory",
+      "description": "Put an item into a container.",
+      "args": {
+        "item": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item to put"
+        },
+        "container": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the container"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Number of items (optional)"
+        }
+      }
+    },
+    "equip_item": {
+      "category": "inventory",
+      "description": "Wear, wield, hold, grab, or remove an item.",
+      "args": {
+        "item": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item"
+        },
+        "action": {
+          "type": "string",
+          "required": true,
+          "description": "Equip action",
+          "enum": [
+            "wear",
+            "wield",
+            "grab",
+            "hold",
+            "remove"
+          ]
+        },
+        "body_loc": {
+          "type": "string",
+          "required": false,
+          "description": "Body location to wear on (optional, e.g. 'head', 'finger')"
+        }
+      }
+    },
+    "consume_item": {
+      "category": "inventory",
+      "description": "Eat, drink, taste, or sip a consumable item.",
+      "args": {
+        "item": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item to consume"
+        },
+        "mode": {
+          "type": "string",
+          "required": false,
+          "description": "Consume mode",
+          "enum": [
+            "eat",
+            "taste",
+            "drink",
+            "sip"
+          ],
+          "default": "eat"
+        }
+      }
+    },
+    "cast_spell": {
+      "category": "magic",
+      "description": "Cast a spell, optionally at a target.",
+      "args": {
+        "spell": {
+          "type": "string",
+          "required": true,
+          "description": "Full spell name (e.g. 'cure light wounds')"
+        },
+        "target": {
+          "type": "string",
+          "required": false,
+          "description": "Target mob, player, or object (optional)"
+        }
+      }
+    },
+    "use_magic_item": {
+      "category": "magic",
+      "description": "Activate a magic item: quaff a potion, recite a scroll, or use a wand/staff.",
+      "args": {
+        "item": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item to activate"
+        },
+        "mode": {
+          "type": "string",
+          "required": true,
+          "description": "Activation mode",
+          "enum": [
+            "use",
+            "quaff",
+            "recite"
+          ]
+        },
+        "target_args": {
+          "type": "string",
+          "required": false,
+          "description": "Optional target arguments (e.g. mob name for a wand)"
+        }
+      }
+    },
+    "shop": {
+      "category": "utility",
+      "description": "Interact with a shop NPC: list stock, buy, sell, or value an item.",
+      "args": {
+        "action": {
+          "type": "string",
+          "required": true,
+          "description": "Shop action",
+          "enum": [
+            "buy",
+            "sell",
+            "list",
+            "value",
+            "offer"
+          ]
+        },
+        "args": {
+          "type": "string",
+          "required": false,
+          "description": "Item name or number (optional)"
+        }
+      }
+    },
+    "practice": {
+      "category": "utility",
+      "description": "List your known skills at a guildmaster, or practice a specific skill.",
+      "args": {
+        "skill": {
+          "type": "string",
+          "required": false,
+          "description": "Skill name to practice (omit to list all)"
+        }
+      }
+    },
+    "save_character": {
+      "category": "utility",
+      "description": "Save your character to disk so progress is not lost on disconnect.",
+      "args": {}
+    },
+    "send_raw": {
+      "category": "utility",
+      "description": "Send an arbitrary command string to the MUD and return the response. Escape hatch for when no structured tool fits.",
+      "args": {
+        "command": {
+          "type": "string",
+          "required": true,
+          "description": "The raw command to send (e.g. 'who', 'help backstab')"
+        }
+      }
+    },
+    "poll": {
+      "category": "utility",
+      "description": "Return any unprompted output that has arrived since the last command (combat ticks, other players, room events) without sending anything. Use this to notice things that happen while idle.",
+      "args": {}
+    },
+    "mud_status": {
+      "category": "utility",
+      "description": "Report whether the MUD session is currently connected.",
+      "args": {}
+    }
+  }
+}

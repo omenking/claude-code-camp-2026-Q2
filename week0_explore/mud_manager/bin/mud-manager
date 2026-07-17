@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# mud-manager — one process that owns a MudManager::Session and exposes it to
+# agents in any language over stdio.
+#
+# Modes:
+#   mud-manager --mcp          Serve the Model Context Protocol (default).
+#   mud-manager --stdio-json   Serve the bespoke newline-delimited JSON protocol.
+#   mud-manager --dump-spec    Regenerate primitives.json from the Ruby ToolSpec.
+#   mud-manager --list-tools   Print the tool schemas as JSON and exit.
+#   mud-manager --help         Show this help.
+#
+# Connection credentials come from the environment / config, never from tool
+# args (plan §5):
+#   MUD_HOST (default localhost)   MUD_NAME / MUD_USER
+#   MUD_PORT (default 4000)        MUD_PASSWORD
+# Falls back to ~/.boukensha/settings.yaml `mud:` when those are unset.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "mud_manager"
+
+def die(msg, code = 1)
+  warn msg
+  exit code
+end
+
+mode = ARGV.find { |a| a.start_with?("--") } || "--mcp"
+
+case mode
+when "--help", "-h"
+  doc = File.read(__FILE__).lines
+           .drop(1)                                   # shebang
+           .take_while { |l| l.start_with?("#") }     # leading comment block
+           .reject { |l| l.include?("frozen_string_literal") }
+           .map { |l| l.sub(/^# ?/, "") }
+           .join
+  puts doc
+  exit 0
+
+when "--dump-spec"
+  path = ARGV[ARGV.index(mode) + 1]
+  written = path ? MudManager::Mcp::Spec.dump(path) : MudManager::Mcp::Spec.dump
+  warn "wrote #{written}"
+  exit 0
+
+when "--list-tools"
+  puts JSON.pretty_generate(MudManager::Mcp::Spec.mcp_tools)
+  exit 0
+
+when "--stdio-json"
+  $stdout.sync = true
+  MudManager::Mcp::JsonLineServer.new.run
+
+when "--mcp"
+  $stdout.sync = true
+  MudManager::Mcp::Server.new.run
+
+else
+  die "unknown mode: #{mode} (try --help)"
+end

@@ -19,8 +19,10 @@ Gem::Specification.new do |spec|
   spec.bindir      = "bin"
   spec.executables = ["boukensha"]
 
-  # MUD session management and CircleMUD command primitives.
-  spec.add_dependency "mud_manager", "~> 0.1"
-
-  # net/http and json are stdlib. Users supply their own ANTHROPIC_API_KEY.
+  # No tool dependencies: boukensha ships no tools of its own. Every tool the
+  # agent can call arrives from an MCP server named in settings.yaml, and those
+  # servers are separate processes with their own dependencies — the MUD needs
+  # `mud_manager`, but the mud-manager binary owns that, not us.
+  #
+  # open3, net/http, and json are stdlib. Users supply their own ANTHROPIC_API_KEY.
 end
