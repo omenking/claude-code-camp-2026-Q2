@@ -1,0 +1,49 @@
+PATH
+  remote: .
+  specs:
+    boukensha (0.11.1)
+      charm
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    bubbles (0.1.1)
+      bubbletea
+      harmonica
+      lipgloss
+    bubbletea (0.1.4)
+      lipgloss (~> 0.1)
+    bubbletea (0.1.4-x86_64-linux-gnu)
+      lipgloss (~> 0.1)
+    bubblezone (0.1.2)
+    bubblezone (0.1.2-x86_64-linux-gnu)
+    charm (0.1.0)
+      bubbles
+      bubbletea
+      bubblezone
+      glamour
+      gum
+      harmonica
+      lipgloss
+      ntcharts
+    dotenv (3.2.0)
+    glamour (0.2.2)
+    glamour (0.2.2-x86_64-linux-gnu)
+    gum (0.3.2)
+    harmonica (0.1.1)
+    lipgloss (0.2.2)
+    lipgloss (0.2.2-x86_64-linux-gnu)
+    ntcharts (0.1.2)
+    ntcharts (0.1.2-x86_64-linux-gnu)
+
+PLATFORMS
+  ruby
+  x86_64-linux
+
+DEPENDENCIES
+  boukensha!
+  charm
+  dotenv
+
+BUNDLED WITH
+   2.5.19

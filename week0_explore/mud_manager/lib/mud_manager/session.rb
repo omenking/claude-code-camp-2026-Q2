@@ -178,9 +178,11 @@ module MudManager
       # Enter Password
       self.send_command(password)
 
-      output = self.read_until(/Welcome|Reconnecting|Wrong password/i)
-      if output =~ /Reconnecting/i
-        # already in-world, skip menu
+      output = self.read_until(/Welcome|Reconnecting|already in use|Wrong password/i)
+      if output =~ /Reconnecting|already in use/i
+        # Already in-world, skip menu. A stale connection under the same name
+        # gets kicked server-side with no Y/N prompt ("You take over your own
+        # body, already in use!") — functionally identical to "Reconnecting."
       elsif output =~ /Welcome/i
         # fresh login, handle menu
         self.send_command(:return) # enter for main menu
