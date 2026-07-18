@@ -37,8 +37,8 @@ mcp_servers:
     env:
       MUD_HOST:     localhost
       MUD_PORT:     4000
-      MUD_NAME:     dummyi
-      MUD_PASSWORD: helloworld
+      MUD_NAME:     derrano
+      MUD_PASSWORD: testing
 
   # Files. A third-party server nobody wrote boukensha code for — which is the
   # whole point: file access is a server you plug in, not a feature the agent
