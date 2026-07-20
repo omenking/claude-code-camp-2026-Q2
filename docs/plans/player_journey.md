@@ -99,7 +99,7 @@ Work our way backwards from our current known goal.
 - have at least one recall scroll
 - get the bag and canteen as soon as you can
 - dont waste money on gear in town
-- bank 80% of your money and keep 20% on hand
+- bank 80% of your money and keep 20% on habut nd
   - when you have a large sum of money go back and bank your money.
   - go bank if you suspect you are going to die.
 - food (not water) expires, so eat when you can, only take what you can eat.
