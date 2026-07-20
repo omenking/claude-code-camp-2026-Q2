@@ -1,0 +1,62 @@
+--- a/ext/bubbletea/program.c
++++ b/ext/bubbletea/program.c
+@@ -1,4 +1,5 @@
+ #include "extension.h"
++#include <string.h>
+ 
+ static void program_free(void *pointer) {
+   bubbletea_program_t *program = (bubbletea_program_t *)pointer;
+@@ -27,6 +28,7 @@
+ static VALUE program_alloc(VALUE klass) {
+   bubbletea_program_t *program = ALLOC(bubbletea_program_t);
+   program->handle = tea_new_program();
++  program->pending_len = 0;
+   return TypedData_Wrap_Struct(klass, &program_type, program);
+ }
+ 
+@@ -159,14 +161,30 @@
+   GET_PROGRAM(self, program);
+ 
+   char buffer[256];
+-  int bytes_read = tea_input_read_raw(program->handle, buffer, sizeof(buffer), NUM2INT(timeout_ms));
++  int bytes_available;
++
++  if (program->pending_len > 0) {
++    // Replay bytes left over from a previous read() before blocking on stdin
++    // again, so multi-byte chunks (e.g. fast typing on WSL2 ptys) don't get
++    // truncated to a single event.
++    memcpy(buffer, program->pending_buf, program->pending_len);
++    bytes_available = program->pending_len;
++    program->pending_len = 0;
++  } else {
++    bytes_available = tea_input_read_raw(program->handle, buffer, sizeof(buffer), NUM2INT(timeout_ms));
+ 
+-  if (bytes_read <= 0) {
+-    return Qnil; // Timeout or error
++    if (bytes_available <= 0) {
++      return Qnil; // Timeout or error
++    }
+   }
+ 
+   int consumed;
+-  char *json = tea_parse_input_with_consumed(buffer, bytes_read, &consumed);
++  char *json = tea_parse_input_with_consumed(buffer, bytes_available, &consumed);
++
++  if (consumed > 0 && consumed < bytes_available) {
++    program->pending_len = bytes_available - consumed;
++    memcpy(program->pending_buf, buffer + consumed, program->pending_len);
++  }
+ 
+   if (json == NULL || json[0] == '\0') {
+     tea_free(json);
+--- a/ext/bubbletea/extension.h
++++ b/ext/bubbletea/extension.h
+@@ -11,6 +11,8 @@
+ 
+ typedef struct {
+   unsigned long long handle;
++  char pending_buf[256];
++  int pending_len;
+ } bubbletea_program_t;
+ 
+ #define GET_PROGRAM(self, program) \
