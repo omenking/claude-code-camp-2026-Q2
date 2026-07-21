@@ -1,5 +1,10 @@
 # MudManager — CircleMUD sessions, command primitives, and an MCP daemon
 
+## Build
+gem build mud_manager.gemspec
+gem install mud_manager-0.3.0.gem
+
+
 One gem, one binary. `MudManager` has two layers:
 
 - **The domain** (`MudManager::Session` + `MudManager::Primitives`): a

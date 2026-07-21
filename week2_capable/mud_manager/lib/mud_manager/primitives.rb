@@ -394,6 +394,51 @@ module MudManager
       cmd(:house_admin, "house", raw, player: player)
     end
 
+    # ---------- Admin / immortal (God commands) ----------
+    #
+    # These require an immortal-level character (the exact LVL_* gate varies per
+    # command). They manipulate world/character state directly and are NOT part
+    # of the mortal player surface — sent from a mortal session the MUD just
+    # replies "Huh?!". Like every other primitive here, they only *build* the
+    # line; the caller is responsible for logging in as an admin first.
+    #
+    # The mortal start / respawn room in tbaMUD is The Temple of Midgaard,
+    # room vnum 3001 — the canonical "reset a player to the start" destination.
+    START_ROOM = 3001
+
+    # Teleport yourself to a room (vnum) or to another character.
+    def goto(target)
+      require_str!(target.to_s, :target)
+      cmd(:goto, "goto", "goto #{target}", target: target)
+    end
+
+    # Pull a player to your current room (or, with `to`, to a room/character).
+    # `teleport` is usually preferable for a fixed destination since it doesn't
+    # require the immortal to move first.
+    def transfer(who, to: nil)
+      require_str!(who, :who)
+      raw = to ? "transfer #{who} #{to}" : "transfer #{who}"
+      cmd(:transfer, "transfer", raw, who: who, to: to)
+    end
+
+    # Move another character to a room (vnum) or to another character. The
+    # victim must be online and lower level than the immortal issuing it.
+    def teleport(victim, destination)
+      require_str!(victim, :victim)
+      require_str!(destination.to_s, :destination)
+      cmd(:teleport, "teleport", "teleport #{victim} #{destination}",
+          victim: victim, destination: destination)
+    end
+
+    # Run a single command as if standing in another room (vnum) or beside
+    # another character, without moving there — e.g. `at 3001 transfer derrano`.
+    def at_location(location, command)
+      require_str!(location.to_s, :location)
+      require_str!(command, :command)
+      cmd(:at_location, "at", "at #{location} #{command}",
+          location: location, command: command)
+    end
+
     # ---------- internals ----------
 
     def cmd(primitive, verb, raw, **args)

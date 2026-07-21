@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# Reset a player back to the mortal start room — The Temple of Midgaard,
+# room 3001 — using immortal admin commands, driven directly through the
+# MudManager SDK (no MCP daemon in between).
+#
+# The player has to be in-world for an immortal to teleport them, so this
+# script logs BOTH characters in: the player (to guarantee they're online)
+# and the admin (to issue the god command), each on its own telnet session.
+#
+# Usage:
+#   week2_capable/bin/reset
+#
+# Everything is overridable by environment:
+#   ADMIN_USERNAME=admin   ADMIN_PASSWORD=password  \
+#   PLAYER_USERNAME=derrano PLAYER_PASSWORD=helloworld \
+#   MUD_HOST=localhost MUD_PORT=4000 START_ROOM=3001 \
+#   week2_capable/bin/reset
+
+require_relative "../mud_manager/lib/mud_manager"
+
+HOST = ENV.fetch("MUD_HOST", "localhost")
+PORT = Integer(ENV.fetch("MUD_PORT", "4000"))
+
+ADMIN_USERNAME  = ENV.fetch("ADMIN_USERNAME",  "admin")
+ADMIN_PASSWORD  = ENV.fetch("ADMIN_PASSWORD",  "password")
+PLAYER_USERNAME = ENV.fetch("PLAYER_USERNAME", "dummy")
+PLAYER_PASSWORD = ENV.fetch("PLAYER_PASSWORD", "helloworld")
+
+START_ROOM = Integer(ENV.fetch("START_ROOM", MudManager::Primitives::START_ROOM.to_s))
+
+def banner(msg) = puts("\n=== #{msg} ===")
+
+player = nil
+admin  = nil
+
+begin
+  # 1. Bring the player into the world so the immortal can target them.
+  banner "Logging in player #{PLAYER_USERNAME}"
+  player = MudManager::Session.new(host: HOST, port: PORT)
+  player.open
+  player.login(PLAYER_USERNAME, PLAYER_PASSWORD)
+  puts player.read_until_quiet(0.5)
+
+  # 2. Log the admin in on a second connection.
+  banner "Logging in admin #{ADMIN_USERNAME}"
+  admin = MudManager::Session.new(host: HOST, port: PORT)
+  admin.open
+  admin.login(ADMIN_USERNAME, ADMIN_PASSWORD)
+  puts admin.read_until_quiet(0.5)
+
+  # 3. Teleport the player to the start room.
+  banner "Teleporting #{PLAYER_USERNAME} -> room #{START_ROOM}"
+  command = MudManager::Primitives.teleport(PLAYER_USERNAME, START_ROOM)
+  puts "> #{command.raw}"
+  admin.send_command(command)
+  puts admin.read_until_quiet(0.5)
+
+  # 4. Confirm from the player's side: they should now see the temple room.
+  banner "Player location after reset"
+  player.send_command(MudManager::Primitives.look)
+  arrival = player.read_until_quiet(0.5)
+  puts arrival
+
+  if arrival =~ /Temple of Midgaard/i
+    puts "\n✔ #{PLAYER_USERNAME} is back at The Temple of Midgaard (#{START_ROOM})."
+  else
+    warn "\n⚠ Could not confirm arrival at room #{START_ROOM}. Check the output above."
+  end
+ensure
+  player&.close
+  admin&.close
+end
