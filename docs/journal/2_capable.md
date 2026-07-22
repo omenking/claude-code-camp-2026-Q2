@@ -103,7 +103,13 @@ We should just have a single mud monitor:
 - see world data visualization
 - see agent sessions
 I'll create a new plan [mud_monitor](../plans/week2/mud_monitor.md)
-
+Considerable amount of arugments planning with Claude Opus but I told it I want logs at:
+  - telnet session raw output
+  - mud manager api calls
+  - agent sessions
+It didn't like security for passwords, or size of logs, but they are okay for our development usecase.
+It broke it plan to mud_monitor into 10 phases, Im not sure how much confidence I have in to do that much work.
+I only had to run to phase 6, after implementation we discovered that each subtask will spawn a new log/session and thats a problems so I asked Claude to fix it.
 
 
 ## Technical Conclusions

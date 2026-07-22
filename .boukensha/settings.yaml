@@ -93,6 +93,14 @@ mcp_servers:
       MUD_PORT:     4000
       MUD_NAME:     dummy
       MUD_PASSWORD: helloworld
+      # Off by default in mud-manager (unset = no logging); pointed at the
+      # dir mud_monitor reads so every agent tool call shows up on its
+      # /manager page (mud_monitor spec §4.3).
+      MUD_MANAGER_LOG_DIR: .boukensha/manager
+      # Raw byte stream, both directions (mud_monitor spec §4.2). The
+      # password is redacted at the Session#login call site before this
+      # ever reaches disk, so enabling it is safe in this dev-only setup.
+      MUD_TELNET_LOG_DIR: .boukensha/telnet
 
   # Files. A third-party server nobody wrote boukensha code for — which is the
   # whole point: file access is a server you plug in, not a feature the agent

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rake test)",
+      "Bash(gem list*)",
+      "Bash(ruby -c*)",
+      "Bash(bundle exec rake test)",
+      "Bash(gem which*)",
+      "Bash(gem contents*)"
+    ]
+  }
+}
