@@ -297,6 +297,15 @@ module Boukensha
         @live[:iteration]      = (event[:n] || event["n"]).to_i
         @live[:current_action] = "Thinking…"
 
+      when "task_start"
+        # A delegated sub-run now writes into the player's session, so its
+        # events arrive here too. Name the task so the status line says what is
+        # actually running rather than attributing it to the player.
+        @live[:current_action] = "Delegating to #{event[:task_name] || event["task_name"]}…"
+
+      when "task_end"
+        @live[:current_action] = "Thinking…"
+
       when "tool_call"
         name = event[:name] || event["name"]
         @live[:current_action]  = "Calling tool: #{name}"

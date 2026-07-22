@@ -1,0 +1,10 @@
+{"phase":"session_start","session_id":"wallclock_ms","at":"2026-07-22T10:00:00.000-04:00","model":"claude-haiku-4-5","provider":"anthropic","max_iterations":20,"max_turn_tokens":120000,"context_window":200000}
+{"phase":"turn","n":0,"session_id":"wallclock_ms","at":"2026-07-22T10:00:00.000-04:00"}
+{"phase":"iteration","n":1,"session_id":"wallclock_ms","at":"2026-07-22T10:00:00.000-04:00"}
+{"phase":"prompt","message_count":1,"messages":[{"role":"user","content":"look around"}],"session_id":"wallclock_ms","at":"2026-07-22T10:00:00.050-04:00"}
+{"phase":"response","text":"(tool use — 1 call)","usage":{"input_tokens":100,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"stop_reason":"tool_use","task":"player","provider":"anthropic","model":"claude-haiku-4-5","input_tokens":100,"output_tokens":10,"cost_usd":0.0002,"session_id":"wallclock_ms","at":"2026-07-22T10:00:00.400-04:00"}
+{"phase":"tool_call","name":"look","args":{},"session_id":"wallclock_ms","at":"2026-07-22T10:00:00.410-04:00"}
+{"phase":"tool_result","name":"look","result":"The Common Square","ok":true,"error":null,"session_id":"wallclock_ms","at":"2026-07-22T10:00:01.410-04:00"}
+{"phase":"iteration","n":2,"session_id":"wallclock_ms","at":"2026-07-22T10:00:01.415-04:00"}
+{"phase":"response","text":"You see the common square.","usage":{"input_tokens":200,"output_tokens":20,"cache_read_input_tokens":0,"cache_creation_input_tokens":0},"stop_reason":"end_turn","task":"player","provider":"anthropic","model":"claude-haiku-4-5","input_tokens":200,"output_tokens":20,"cost_usd":0.0004,"session_id":"wallclock_ms","at":"2026-07-22T10:00:01.900-04:00"}
+{"phase":"turn_end","reason":"completed","iterations":2,"tokens":330,"session_id":"wallclock_ms","at":"2026-07-22T10:00:01.920-04:00"}

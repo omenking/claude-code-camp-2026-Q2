@@ -1,0 +1,5 @@
+{"phase":"session_start","session_id":"truncated","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"turn","n":0,"session_id":"truncated","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"iteration","n":1,"session_id":"truncated","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"prompt","message_count":1,"messages":[{"role":"user","content":"look"}],"session_id":"truncated","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"response","text":"looking","usage":{"input_tok

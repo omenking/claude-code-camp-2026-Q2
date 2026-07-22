@@ -36,13 +36,13 @@ module MudManager
               # Primitives raises ArgumentError for bad enums / missing required.
               raise ProtocolError.new("argument_error", e.message)
             end
-          @pool.run_command(id, command)
+          @pool.run_command(id, command, tool: name, args: args)
         when :raw
           raw = args["command"].to_s
           raise ProtocolError.new("argument_error", "command is required") if raw.strip.empty?
-          @pool.run_raw(id, raw)
+          @pool.run_raw(id, raw, tool: name, args: args)
         when :poll
-          @pool.poll(id)
+          @pool.poll(id, tool: name, args: args)
         when :status
           @pool.connected?(id) ? "connected to #{@pool.describe(id)}" : "disconnected"
         else

@@ -1,0 +1,9 @@
+{"seq":1,"at":"2026-07-23T12:00:00.000-04:00","mono_ms":100,"session":"default","dir":"in","bytes":25,"text":"\r\nWelcome to CircleMUD!\r\n","redacted":false}
+{"seq":2,"at":"2026-07-23T12:00:01.000-04:00","mono_ms":200,"session":"default","dir":"out","bytes":4,"text":"look","redacted":false}
+{"seq":3,"at":"2026-07-23T12:00:02.000-04:00","mono_ms":300,"session":"default","dir":"in","bytes":22,"text":"The Common Square\r\n> ","redacted":false}
+{"seq":4,"at":"2026-07-23T12:00:03.000-04:00","mono_ms":400,"session":"default","dir":"in","bytes":23,"text":"\r\nThe Mayor arrives.\r\n","redacted":false}
+{"seq":5,"at":"2026-07-23T12:00:04.000-04:00","mono_ms":500,"session":"default","dir":"out","bytes":5,"text":"north","redacted":false}
+{"seq":6,"at":"2026-07-23T12:00:05.000-04:00","mono_ms":600,"session":"default","dir":"in","bytes":20,"text":"You walk north.\r\n> ","redacted":false}
+{"seq":7,"at":"2026-07-23T12:00:06.000-04:00","mono_ms":700,"session":"default","dir":"in","bytes":21,"text":"\r\nA goblin snarls.\r\n","redacted":false}
+{"seq":8,"at":"2026-07-23T12:00:07.000-04:00","mono_ms":800,"session":"default","dir":"in","bytes":11,"text":"20H 100M > ","redacted":false}
+{"seq":9,"at":"2026-07-23T12:00:08.000-04:00","mono_ms":900,"session":"default","dir":"in","bytes":38,"text":"\r\nTrailing chatter after everything.\r\n","redacted":false}

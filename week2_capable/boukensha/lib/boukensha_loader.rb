@@ -117,6 +117,11 @@ module BoukenshaLoader
     # the daemon, but only for keys its `env:` block doesn't set: config now
     # wins over the environment, where it used to lose.
     Boukensha.repl(tui: !no_tui) do
+      # Captured out of the DSL so the sub-run appends to the player's session
+      # file, labelled `room_inspector`, instead of opening one file per room
+      # visited (plan Amendment A).
+      parent = logger
+
       tool "inspect_room",
            description:
              "Survey the current room and get it back as structured JSON " \
@@ -125,7 +130,9 @@ module BoukenshaLoader
              "whenever you arrive somewhere new or need to decide where to go " \
              "next. Takes no arguments." do |**_|
         Boukensha::Tools::InspectRoom.call(
-          run: ->(instruction) { Boukensha.run_task(Boukensha::Tasks::RoomInspector, instruction) }
+          run: ->(instruction) {
+            Boukensha.run_task(Boukensha::Tasks::RoomInspector, instruction, logger: parent)
+          }
         )
       end
     end

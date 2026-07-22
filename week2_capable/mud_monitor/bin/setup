@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> bundle install (api)"
+(cd api && bundle install)
+
+echo "==> npm ci (web)"
+(cd web && npm ci)
+
+echo "==> db:prepare (api)"
+(cd api && bin/rails db:prepare)
+
+echo "Setup complete. Run bin/dev to start the app."

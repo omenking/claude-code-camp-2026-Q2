@@ -9,7 +9,13 @@ module Boukensha
     # and returns structured JSON. Here we only kick that off and tidy the
     # result. `run` is injected:
     #
-    #   run: ->(instruction) { Boukensha.run_task(Tasks::RoomInspector, instruction) }
+    #   run: ->(instruction) {
+    #     Boukensha.run_task(Tasks::RoomInspector, instruction, logger: parent)
+    #   }
+    #
+    # `logger:` is the player's own logger, so the sub-run's events land in the
+    # player's session file labelled `room_inspector` rather than in a new file
+    # per room visited (plan Amendment A).
     module InspectRoom
       # The single instruction handed to the subagent. Its system prompt owns
       # the how (which tools to call, the JSON schema); this is just the "go".

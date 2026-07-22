@@ -1,0 +1,5 @@
+{"phase":"session_start","session_id":"unknown_phase","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"turn","n":0,"session_id":"unknown_phase","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"iteration","n":1,"session_id":"unknown_phase","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"goal","text":"reach the temple","session_id":"unknown_phase","at":"2026-07-22T10:00:00-04:00"}
+{"phase":"turn_end","reason":"completed","iterations":1,"tokens":0,"session_id":"unknown_phase","at":"2026-07-22T10:00:01-04:00"}

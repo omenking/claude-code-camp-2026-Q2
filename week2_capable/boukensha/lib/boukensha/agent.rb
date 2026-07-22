@@ -58,7 +58,7 @@ module Boukensha
           handle_tool_calls(parsed[:content], response)
         else
           text = extract_text(parsed[:content])
-          @logger.response(text: text, usage: response["usage"], stop_reason: parsed[:stop_reason], task: nil, backend: @builder.backend)
+          @logger.response(text: text, usage: response["usage"], stop_reason: parsed[:stop_reason], backend: @builder.backend)
           @logger.turn_end(reason: "completed", iterations: @iteration, tokens: @context.turn_tokens)
           @context.add_message(:assistant, text)
           return text
@@ -111,7 +111,7 @@ module Boukensha
       text        = extract_text(parsed_wrap[:content])
       text        = fallback_message(reason) if text.strip.empty?
       record_usage(response)
-      @logger.response(text: text, usage: response["usage"], stop_reason: parsed_wrap[:stop_reason], task: nil, backend: @builder.backend)
+      @logger.response(text: text, usage: response["usage"], stop_reason: parsed_wrap[:stop_reason], backend: @builder.backend)
       @logger.turn_end(reason: reason, iterations: @iteration, tokens: @context.turn_tokens)
       @context.add_message(:assistant, text)
       text
@@ -154,7 +154,12 @@ module Boukensha
       # the placeholder below owns the turn's usage chip), then the placeholder.
       preamble = extract_text(content)
       @logger.plan(text: preamble) unless preamble.strip.empty?
-      @logger.response(text: "(tool use — #{tool_calls.size} call#{'s' if tool_calls.size != 1})", usage: response["usage"], stop_reason: "tool_use")
+      # `backend:` matters here as much as on the final response: in an agentic
+      # loop most of the turn's spend rides on tool-use placeholders, and
+      # without it those calls land in the cost breakdown as provider/model
+      # "unknown" — the per-task cost table Amendment A exists to enable.
+      @logger.response(text: "(tool use — #{tool_calls.size} call#{'s' if tool_calls.size != 1})",
+                       usage: response["usage"], stop_reason: "tool_use", backend: @builder.backend)
 
       @context.add_message(:assistant, content)
 

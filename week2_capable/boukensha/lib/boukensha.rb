@@ -72,15 +72,10 @@ module Boukensha
 
     register_task_tools(registry, cfg, perms)
 
-    RunDSL.new(registry).instance_eval(&block) if block
-
-    perms.validate_referenced!(registry.tool_names)
-
-    be = build_backend(backend, api_key: api_key, model: model, ollama_host: ollama_host)
-
-    builder = PromptBuilder.new(ctx, be)
-    client  = Client.new(builder)
-    logger  = Logger.new(log: log, snapshot: {
+    # The logger is built BEFORE the block is evaluated so the block can reach
+    # it (RunDSL#logger) and hand it to a delegating tool — one session file per
+    # run, not one per delegation. It depends only on values resolved above.
+    logger = Logger.new(log: log, task: task_class.task_name, snapshot: {
       max_iterations:    cfg.agent_max_iterations,
       max_turn_tokens:   cfg.agent_max_turn_tokens,
       max_output_tokens: (max_output_tokens || cfg.agent_max_output_tokens),
@@ -88,6 +83,15 @@ module Boukensha
       model:             model,
       provider:          backend
     })
+
+    RunDSL.new(registry, logger: logger).instance_eval(&block) if block
+
+    perms.validate_referenced!(registry.tool_names)
+
+    be = build_backend(backend, api_key: api_key, model: model, ollama_host: ollama_host)
+
+    builder = PromptBuilder.new(ctx, be)
+    client  = Client.new(builder)
     agent   = Agent.new(context: ctx, registry: registry, builder: builder, client: client, logger: logger,
                         max_iterations: cfg.agent_max_iterations,
                         max_turn_tokens: cfg.agent_max_turn_tokens,
@@ -131,15 +135,8 @@ module Boukensha
 
     servers = register_task_tools(registry, cfg, perms)
 
-    RunDSL.new(registry).instance_eval(&block) if block
-
-    perms.validate_referenced!(registry.tool_names)
-
-    be = build_backend(backend, api_key: api_key, model: model, ollama_host: ollama_host)
-
-    builder = PromptBuilder.new(ctx, be)
-    client  = Client.new(builder)
-    logger  = Logger.new(log: log, snapshot: {
+    # Built before the block for the same reason as in .run — see there.
+    logger = Logger.new(log: log, task: task_class.task_name, snapshot: {
       max_iterations:    cfg.agent_max_iterations,
       max_turn_tokens:   cfg.agent_max_turn_tokens,
       max_output_tokens: (max_output_tokens || cfg.agent_max_output_tokens),
@@ -147,6 +144,15 @@ module Boukensha
       model:             model,
       provider:          backend
     })
+
+    RunDSL.new(registry, logger: logger).instance_eval(&block) if block
+
+    perms.validate_referenced!(registry.tool_names)
+
+    be = build_backend(backend, api_key: api_key, model: model, ollama_host: ollama_host)
+
+    builder = PromptBuilder.new(ctx, be)
+    client  = Client.new(builder)
 
     repl = Repl.new(
       context:    ctx,
@@ -192,7 +198,14 @@ module Boukensha
   #
   # Because provider/model/prompt come from the task's settings block, swapping
   # room_inspector to a local Ollama model later is config-only (plan §9).
-  def self.run_task(task_class, input, log: nil, max_output_tokens: nil, ollama_host: "http://localhost:11434")
+  #
+  # `logger:` — pass the CALLER's logger (the player's) and the sub-run appends
+  # to that session file, bracketed by task_start/task_end and with every event
+  # stamped with this task's name (plan Amendment A). Omit it and the sub-run
+  # mints its own file as before, which is what standalone callers and tests
+  # want. A borrowed logger is never closed here: it belongs to the parent, and
+  # closing it would silently truncate the rest of the parent's turn.
+  def self.run_task(task_class, input, log: nil, logger: nil, max_output_tokens: nil, ollama_host: "http://localhost:11434")
     cfg            = config
     task_settings  = cfg.tasks(task_class.task_name)
     system         = task_class.system_prompt(task_settings, user_prompts_dir: cfg.user_prompts_dir, default_prompts_dir: Config::PROMPTS_DIR)
@@ -211,20 +224,33 @@ module Boukensha
     be       = build_backend(backend, api_key: api_key, model: model, ollama_host: ollama_host)
     builder  = PromptBuilder.new(ctx, be)
     client   = Client.new(builder)
-    logger   = Logger.new(log: log, snapshot: {
+    run_snapshot = {
       max_iterations:    max_iters,
       max_turn_tokens:   cfg.agent_max_turn_tokens,
       max_output_tokens: max_out,
       context_window:    context_window,
       model:             model,
       provider:          backend
-    })
-    agent = Agent.new(context: ctx, registry: registry, builder: builder, client: client, logger: logger,
-                      max_iterations: max_iters, max_turn_tokens: cfg.agent_max_turn_tokens, max_output_tokens: max_out)
-    ctx.add_message(:user, input)
-    agent.run
+    }
+
+    own_logger = logger.nil?
+    logger   ||= Logger.new(log: log, task: task_class.task_name, snapshot: run_snapshot)
+    agent      = Agent.new(context: ctx, registry: registry, builder: builder, client: client, logger: logger,
+                           max_iterations: max_iters, max_turn_tokens: cfg.agent_max_turn_tokens, max_output_tokens: max_out)
+
+    body = lambda do
+      ctx.add_message(:user, input)
+      agent.run
+    end
+
+    # A logger of our own already has this task as its root (depth 0) and this
+    # configuration in its session_start, so bracketing would nest it against
+    # itself. A borrowed one needs both: the marker that opens the group, and
+    # the sub-run's own limits/model, which the parent's session_start does not
+    # carry.
+    own_logger ? body.call : logger.task(task_class.task_name, snapshot: run_snapshot, &body)
   ensure
-    logger&.close
+    logger&.close if own_logger
   end
 
   # Construct a backend from its symbol name. Extracted so .run, .repl, and

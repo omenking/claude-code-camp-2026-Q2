@@ -9,13 +9,38 @@ module Boukensha
 
     attr_reader :session_id, :path
 
-    def initialize(session_id: nil, dir: nil, log: nil, snapshot: {})
+    DEFAULT_TASK = "player".freeze
+
+    def initialize(session_id: nil, dir: nil, log: nil, snapshot: {}, task: DEFAULT_TASK)
       @session_id = session_id || generate_session_id
       @path       = log || File.join(dir || default_dir, "#{@session_id}.jsonl")
+      @task_stack = [ task.to_s ]
 
       FileUtils.mkdir_p(File.dirname(@path))
       @log_io = File.open(@path, "a")
       write_log({ phase: "session_start" }.merge(snapshot))
+    end
+
+    # Bracket a delegated sub-run so its events land in THIS file, labelled with
+    # the task that produced them. Without this, every delegation minted a fresh
+    # logger and therefore a fresh session file, leaving neither file a complete
+    # account of the turn and nothing on disk linking them (plan Amendment A).
+    #
+    # Reentrant: the stack keeps nesting honest if a subagent ever delegates
+    # further, and `ensure` guarantees a raise inside the sub-run still closes
+    # the group rather than mislabelling everything that follows.
+    def task(name, snapshot: {})
+      @task_stack.push(name.to_s)
+      write_log({ phase: "task_start", task_name: name.to_s }.merge(snapshot))
+      yield
+    ensure
+      write_log(phase: "task_end", task_name: name.to_s)
+      @task_stack.pop
+    end
+
+    # The task currently on top of the stack — what the agent is doing *now*.
+    def current_task
+      @task_stack.last
     end
 
     def turn(n:)
@@ -57,14 +82,18 @@ module Boukensha
       write_log(phase: "tool_result", name: name, result: result.to_s, ok: ok, error: error)
     end
 
-    def response(text:, usage: nil, stop_reason: nil, task: nil, backend: nil)
+    # `task` is deliberately NOT a parameter here: write_log stamps it on every
+    # event from the task stack, so no call site can forget it (and none can
+    # disagree with another — two sources of truth for one field is how the old
+    # `task:` argument ended up nil at every call site and dead in every log).
+    def response(text:, usage: nil, stop_reason: nil, backend: nil)
       write_log(
         {
           phase: "response",
           text: text.to_s.strip,
           usage: usage,
           stop_reason: stop_reason
-        }.merge(execution_metadata(task: task, backend: backend, usage: usage))
+        }.merge(execution_metadata(backend: backend, usage: usage))
       )
     end
 
@@ -98,7 +127,14 @@ module Boukensha
     end
 
     def write_log(event)
-      @log_io.puts JSON.generate(event.merge(session_id: @session_id, at: Time.now.iso8601))
+      now = Time.now
+      @log_io.puts JSON.generate(event.merge(
+        session_id: @session_id,
+        task:       @task_stack.last,
+        depth:      @task_stack.size - 1,
+        at:         now.iso8601(3),
+        mono_ms:    (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000).round
+      ))
       @log_io.flush
       @subscribers&.each { |s| s.call(event) }
     end
@@ -111,12 +147,11 @@ module Boukensha
       { role: msg.role, content: msg.content }
     end
 
-    def execution_metadata(task:, backend:, usage:)
-      return {} unless task || backend || usage
+    def execution_metadata(backend:, usage:)
+      return {} unless backend || usage
 
       tokens = usage_tokens(usage)
       metadata = {
-        task: task_name(task),
         provider: provider_name(backend),
         model: backend&.model,
         usage_unit: backend&.respond_to?(:usage_unit) ? backend.usage_unit : nil,
@@ -126,10 +161,6 @@ module Boukensha
         cost_usd: estimate_cost(backend, tokens)
       }
       metadata.compact
-    end
-
-    def task_name(task)
-      task&.respond_to?(:task_name) ? task.task_name : task&.to_s
     end
 
     def provider_name(backend)

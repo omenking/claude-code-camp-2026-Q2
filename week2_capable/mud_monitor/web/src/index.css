@@ -1,0 +1,1023 @@
+/* Port of week1_baseline/log_viz/public/style.css, plus a dark-mode
+   override block (log_viz was light-only). */
+
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+
+  --bg: #eceef1;
+  --panel: #ffffff;
+  --border: #c2c8d0;
+  --text: #0d1117;
+  --muted: #4a5159;
+  --accent: #1d4ed8;
+  --danger: #c62828;
+  --track: #ccd2da;
+  --user-bg: #e3edff;
+  --assistant-bg: #f4f6f9;
+  --tool-bg: #fff7d6;
+  --tool-border: #e3cf6a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --panel: #1c1f24;
+    --border: #33383f;
+    --text: #e6e8eb;
+    --muted: #9aa2ab;
+    --accent: #5c8dff;
+    --danger: #ff6b6b;
+    --track: #2a2f36;
+    --user-bg: #1c2942;
+    --assistant-bg: #21252b;
+    --tool-bg: #33301a;
+    --tool-border: #6b6330;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  background: #1f2328;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.topbar .brand {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.topbar nav a {
+  color: #c7ccd4;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.topbar nav a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin-top: 0;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+dt {
+  font-weight: 600;
+}
+
+dd {
+  margin: 0;
+}
+
+table.sessions,
+table.manager {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+table.sessions th,
+table.sessions td,
+table.manager th,
+table.manager td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+table.sessions th,
+table.manager th {
+  background: color-mix(in srgb, var(--panel) 90%, var(--text) 10%);
+  font-weight: 600;
+}
+
+table.sessions tr:last-child td,
+table.manager tr:last-child td {
+  border-bottom: none;
+}
+
+table.sessions tr:hover,
+table.manager tr:hover {
+  background: color-mix(in srgb, var(--panel) 95%, var(--text) 5%);
+}
+
+table.sessions a {
+  color: var(--accent);
+  text-decoration: none;
+  font-family: ui-monospace, monospace;
+}
+
+table.sessions a:hover {
+  text-decoration: underline;
+}
+
+/* Manager log page (spec §4.3, §5) */
+.manager-filters {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.manager-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.manager-filters input,
+.manager-filters select {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.manager-filter-date {
+  width: 9ch;
+  font-family: ui-monospace, monospace;
+}
+
+.manager-tool,
+.manager-sent {
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+.manager-received-pre {
+  margin: 0;
+  max-height: 6rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.manager-error-text {
+  color: var(--danger);
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+.manager-row-error {
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.stat-tile-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.stat-tile-value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+.stat-tile-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 0.4rem;
+}
+
+.manager-dropped-toggle {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.4rem !important;
+}
+
+.dropped-summary {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: -0.5rem 0 1rem;
+}
+
+/* Dropped-strip UI (spec §5.1) — bytes the MUD sent that never reached a
+   tool call, made visible by Diff::TelnetManager (§3.6). Collapsed by
+   default so a mostly-clean transcript doesn't drown in drain loss. */
+.dropped-strip {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dropped-strip-toggle {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0.15rem 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dropped-strip-toggle:hover {
+  color: var(--text);
+}
+
+.dropped-strip-caret {
+  display: inline-block;
+  transition: transform 0.1s;
+}
+
+.dropped-strip-caret.open {
+  transform: rotate(-90deg);
+}
+
+.dropped-strip-body {
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--danger) 5%, var(--panel) 95%);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  max-height: 10rem;
+  overflow: auto;
+}
+
+/* Telnet log page (spec §4.2, §5) — `out` rows (what the client sent) get a
+   faint tint so the eye can separate them from the much more numerous `in`
+   chatter while scanning a live tail. */
+.telnet-row-out {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.task-name,
+.model-list {
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.empty {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* End-of-turn banner */
+.banner {
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.banner-ok {
+  background: #e6f4ea;
+  color: #1e7e34;
+  border: 1px solid #b7e0c2;
+}
+
+.banner-warn {
+  background: #fff4e5;
+  color: #a15c00;
+  border: 1px solid #f0d9a3;
+}
+
+/* Budget / iteration progress bars */
+.budget {
+  margin-bottom: 0.3rem;
+}
+
+.budget-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  margin-bottom: 0.2rem;
+}
+
+.bar {
+  height: 10px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 5px 0 0 5px;
+}
+
+.bar-fill.danger {
+  background: var(--danger);
+}
+
+/* Stat strip (session header) */
+.statstrip {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 1.25rem;
+}
+
+.statstrip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  margin-bottom: 0.15rem;
+}
+
+.statstrip-model {
+  font-weight: 600;
+}
+
+.statstrip-cost {
+  color: var(--muted);
+}
+
+.statstrip-total {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.breakdown {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.breakdown-title {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  margin-bottom: 0.5rem;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.breakdown-table th,
+.breakdown-table td {
+  border-top: 1px solid var(--border);
+  padding: 0.45rem 0.4rem;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.breakdown-table th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.breakdown-table td {
+  font-family: ui-monospace, monospace;
+}
+
+/* Per-iteration trend sparkline */
+.spark-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.spark-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  margin-bottom: 0.35rem;
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 48px;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.25;
+  vector-effect: non-scaling-stroke;
+}
+
+.spark-turn {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Per-turn rollup strip (rendered at each turn_end) */
+.turn-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--panel) 85%, var(--text) 15%);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.85rem;
+  margin: 0.6rem 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.turn-strip .bar {
+  flex: 1;
+  max-width: 220px;
+}
+
+.turn-strip-text {
+  white-space: nowrap;
+}
+
+.turn-strip-pct {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.turn-strip.danger {
+  background: #fbe3d4;
+  border-color: var(--danger);
+  color: #8a2e00;
+}
+
+/* In-transcript context/turn chip */
+.ctx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+}
+
+.ctx-bar {
+  display: inline-block;
+  width: 90px;
+  height: 9px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.ctx-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 5px 0 0 5px;
+}
+
+.ctx-bar-fill.danger {
+  background: var(--danger);
+}
+
+.ctx-mini {
+  display: inline-block;
+  width: 40px;
+  height: 7px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ctx-mini-fill {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+  border-radius: 3px;
+}
+
+.ctx-turn {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ctx-turn.danger {
+  color: var(--danger);
+}
+
+.ctx-cost {
+  color: #1e7e34;
+  font-weight: 600;
+}
+
+.ctx-model {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg-foot {
+  margin-top: 0.5rem;
+}
+
+.limit-flag {
+  color: #a15c00;
+  margin-left: 0.3rem;
+}
+
+.divider {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+}
+
+.divider-compaction {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 90%, var(--text) 10%);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.entry-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* Timing gutter (spec §5.1): absolute time, +dt since previous, duration pill. */
+.entry-gutter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+  padding: 0 0.15rem;
+}
+
+.entry-gutter-at {
+  cursor: default;
+}
+
+.entry-gutter-dt {
+  color: var(--muted);
+}
+
+.entry-gutter-pill {
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+  font-weight: 600;
+}
+
+.duration-fast {
+  color: var(--muted);
+}
+
+.duration-normal {
+  color: var(--text);
+}
+
+.duration-slow {
+  color: #a15c00;
+  background: #fff4e5;
+}
+
+.duration-very-slow {
+  color: #fff;
+  background: var(--danger);
+}
+
+.duration-coarse {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Task labelling and delegated sub-runs (plan §A.5). The task a row belongs to
+   must be readable while scrolling, not on hover. */
+.entry-gutter-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.task-chip {
+  display: inline-block;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.02rem 0.45rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.task-roster {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.6rem;
+}
+
+.task-goal {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.sub-run-count {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-family: ui-monospace, monospace;
+}
+
+.running-task {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* The left rule keeps a long sub-run's membership visible after its header
+   has scrolled off. */
+.task-group {
+  border-left: 3px solid var(--border);
+  border-radius: 0 6px 6px 0;
+  padding-left: 0.75rem;
+  margin: 0.5rem 0 0.5rem 0.25rem;
+}
+
+.task-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.3rem 0;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.task-group-caret {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.task-group-meta {
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+}
+
+.task-group-spacer {
+  flex: 1;
+}
+
+.task-group-incomplete {
+  color: var(--danger);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.task-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.iteration-marker {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1rem 0 0.25rem;
+}
+
+/* Live streaming (spec §3.3, §5.1) */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+.live-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.live-badge-connected .live-badge-dot {
+  background: #2e9e50;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2e9e50 25%, transparent);
+}
+
+.live-badge-connected {
+  color: #2e9e50;
+}
+
+.live-badge-connecting .live-badge-dot,
+.live-badge-reconnecting .live-badge-dot {
+  background: #a15c00;
+  animation: live-badge-pulse 1.2s ease-in-out infinite;
+}
+
+.live-badge-connecting,
+.live-badge-reconnecting {
+  color: #a15c00;
+}
+
+@keyframes live-badge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.entry-row-new {
+  animation: entry-row-highlight 1.6s ease-out;
+}
+
+@keyframes entry-row-highlight {
+  0% {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+.msg {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.msg-user {
+  background: var(--user-bg);
+}
+
+.msg-assistant {
+  background: var(--assistant-bg);
+}
+
+.msg-reasoning {
+  background: #f0eef8;
+  border-color: #c5b8e8;
+}
+
+.msg-preamble {
+  background: #eef4f8;
+  border-color: #b8d4e8;
+}
+
+.msg-unknown {
+  background: color-mix(in srgb, var(--panel) 92%, orange 8%);
+  border-style: dashed;
+}
+
+.muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.msg-role {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.msg-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.usage {
+  font-size: 0.7rem;
+  font-weight: 400;
+  text-transform: none;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+
+.tool-marker {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0.25rem;
+}
+
+.tool-call {
+  border: 1px solid var(--tool-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-name {
+  background: var(--tool-bg);
+  padding: 0.5rem 1rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--tool-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tool-call.tool-error {
+  border-color: #d9534f;
+}
+
+.tool-call.tool-error .tool-name {
+  background: #fde8e8;
+  border-bottom-color: #d9534f;
+}
+
+.tool-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: #d9534f;
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+}
+
+.tool-result {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* ANSI styles */
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+.ansi-fg-black   { color: #6b6b6b; }
+.ansi-fg-red     { color: #e06c75; }
+.ansi-fg-green   { color: #98c379; }
+.ansi-fg-yellow  { color: #e5c07b; }
+.ansi-fg-blue    { color: #61afef; }
+.ansi-fg-magenta { color: #c678dd; }
+.ansi-fg-cyan    { color: #56b6c2; }
+.ansi-fg-white   { color: #d4d4d4; }
+
+.ansi-fg-bright-black   { color: #999999; }
+.ansi-fg-bright-red     { color: #ff7b86; }
+.ansi-fg-bright-green   { color: #b5e890; }
+.ansi-fg-bright-yellow  { color: #ffe066; }
+.ansi-fg-bright-blue    { color: #82c4ff; }
+.ansi-fg-bright-magenta { color: #e0a3ff; }
+.ansi-fg-bright-cyan    { color: #7eecf2; }
+.ansi-fg-bright-white   { color: #ffffff; }
+
+.ansi-bg-black   { background: #000000; }
+.ansi-bg-red     { background: #5c1f1f; }
+.ansi-bg-green   { background: #2f4a2f; }
+.ansi-bg-yellow  { background: #4a4427; }
+.ansi-bg-blue    { background: #1f3a5c; }
+.ansi-bg-magenta { background: #4a2f4a; }
+.ansi-bg-cyan    { background: #1f4a4a; }
+.ansi-bg-white   { background: #d4d4d4; color: #1e1e1e; }

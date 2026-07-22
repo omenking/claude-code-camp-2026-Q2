@@ -1,6 +1,8 @@
 require_relative "mud_manager/version"
 require_relative "mud_manager/primitives"
 require_relative "mud_manager/session"
+require_relative "mud_manager/manager_log"
+require_relative "mud_manager/telnet_log"
 require_relative "mud_manager/mcp/errors"
 require_relative "mud_manager/mcp/config"
 require_relative "mud_manager/mcp/tool_spec"

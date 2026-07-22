@@ -1,4 +1,6 @@
 require_relative "../session"
+require_relative "../manager_log"
+require_relative "../telnet_log"
 require_relative "config"
 require_relative "errors"
 
@@ -19,11 +21,13 @@ module MudManager
     class SessionPool
       Entry = Struct.new(:session, :config, keyword_init: true)
 
-      def initialize(default_config: nil, timeout: 10.0)
+      def initialize(default_config: nil, timeout: 10.0, manager_log: :from_env, telnet_log: :from_env)
         @default_config = default_config || Config.resolve
         @timeout        = timeout
         @entries        = {}
         @mu             = Mutex.new
+        @manager_log    = manager_log == :from_env ? MudManager::ManagerLog.from_env : manager_log
+        @telnet_log     = telnet_log == :from_env ? MudManager::TelnetLog.from_env : telnet_log
       end
 
       # Configure/replace a named session's connection settings without opening
@@ -59,32 +63,37 @@ module MudManager
 
       # Run a MudManager::Primitives::Command (or String) and return the MUD's
       # response text, waiting for the CircleMUD prompt sentinel.
-      def run_command(id, command)
+      def run_command(id, command, tool: nil, args: nil, correlation_id: nil)
         with_reconnect(id) do
-          s = ensure_ready(id)
-          s.drain
-          s.send_command(command)
-          s.read_until_prompt
+          log_exchange(id, mode: "command", tool: tool, args: args, correlation_id: correlation_id) do
+            s = ensure_ready(id)
+            s.drain
+            sent = s.send_command(command)
+            [ sent, s.read_until_prompt ]
+          end
         end
       end
 
       # Send a raw command string; collect the response via a quiet window
       # (inherited from the since-deleted Boukensha::Tools::Mud#send_raw — some
       # commands need it because they don't emit the standard prompt promptly).
-      def run_raw(id, raw)
+      def run_raw(id, raw, tool: nil, args: nil, correlation_id: nil)
         with_reconnect(id) do
-          s = ensure_ready(id)
-          s.send_command(raw)
-          s.read_until_quiet
+          log_exchange(id, mode: "raw", tool: tool, args: args, correlation_id: correlation_id) do
+            s = ensure_ready(id)
+            sent = s.send_command(raw)
+            [ sent, s.read_until_quiet ]
+          end
         end
       end
 
       # Non-blocking: return whatever unprompted output the reader thread has
       # buffered since the last command (combat ticks, other players, …).
-      def poll(id)
-        s = @mu.synchronize { @entries[id]&.session }
-        return "" unless s && s.open?
-        s.drain
+      def poll(id, tool: nil, args: nil, correlation_id: nil)
+        log_exchange(id, mode: "poll", tool: tool, args: args, correlation_id: correlation_id) do
+          s = @mu.synchronize { @entries[id]&.session }
+          [ nil, (s && s.open? ? s.drain : "") ]
+        end
       end
 
       def close(id = "default")
@@ -109,6 +118,31 @@ module MudManager
 
       private
 
+      # Times `blk`, which must return `[sent, received]`, and writes one
+      # ManagerLog record around it (spec §4.3) whether it succeeds or
+      # raises. A no-op wrapper (just runs the block) when logging is
+      # disabled, so the common case pays nothing beyond the branch.
+      def log_exchange(id, mode:, tool:, args:, correlation_id:)
+        return yield.last unless @manager_log
+
+        start   = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        sent    = nil
+        result  = nil
+        failure = nil
+        begin
+          sent, result = yield
+          result
+        rescue StandardError => e
+          failure = "#{e.class}: #{e.message}"
+          raise
+        ensure
+          elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000).round
+          @manager_log.exchange(session: id, mode: mode, tool: tool, args: args,
+                                 correlation_id: correlation_id, sent: sent, received: result,
+                                 elapsed_ms: elapsed_ms, error: failure)
+        end
+      end
+
       def config_for(id)
         @mu.synchronize { @entries[id]&.config } || @default_config
       end
@@ -131,22 +165,37 @@ module MudManager
             "(or ~/.boukensha/settings.yaml mud:), or use the connect op with name/password")
         end
 
-        session = MudManager::Session.new(host: cfg.host, port: cfg.port, timeout: @timeout)
+        session = MudManager::Session.new(host: cfg.host, port: cfg.port, timeout: @timeout,
+                                           telnet_log: @telnet_log, session_id: id)
+        login_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        login_error   = nil
         begin
           session.open
           session.login(cfg.name, cfg.password)
         rescue MudManager::Session::LoginError => e
           session.close
+          login_error = e.message
           raise ProtocolError.new("login_error", e.message)
         rescue MudManager::Session::ConnectionError => e
           session.close
+          login_error = e.message
           raise ProtocolError.new("connection_error", e.message)
         rescue MudManager::Session::Timeout => e
           session.close
+          login_error = e.message
           raise ProtocolError.new("timeout", "login timed out: #{e.message}")
         rescue MudManager::Session::Error => e
           session.close
+          login_error = e.message
           raise ProtocolError.new("connection_error", e.message)
+        ensure
+          # mode: "login" carries only the username (spec §4.3) — the
+          # password is never passed to ManagerLog, unlike TelnetLog (§4.2)
+          # where it must be explicitly redacted because it crosses that log
+          # verbatim.
+          elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - login_started) * 1000).round
+          @manager_log&.exchange(session: id, mode: "login", sent: cfg.name, received: nil,
+                                  elapsed_ms: elapsed_ms, error: login_error)
         end
 
         @mu.synchronize { entry.session = session }

@@ -31,7 +31,8 @@ module MudManager
 
     attr_reader :host, :port
 
-    def initialize(host: DEFAULT_HOST, port: DEFAULT_PORT, timeout: DEFAULT_TIMEOUT)
+    def initialize(host: DEFAULT_HOST, port: DEFAULT_PORT, timeout: DEFAULT_TIMEOUT,
+                   telnet_log: nil, session_id: "default")
       @host       = host
       @port       = port
       @timeout    = timeout
@@ -42,6 +43,8 @@ module MudManager
       @buffer_cv  = ConditionVariable.new
       @closed     = false
       @last_recv_at = nil
+      @telnet_log = telnet_log
+      @session_id = session_id
     end
 
     def open
@@ -73,7 +76,10 @@ module MudManager
 
     # Send a command. Accepts a String, a Primitives::Command, or anything
     # that responds to #raw or #to_s. A trailing newline is appended.
-    def send_command(command)
+    #
+    # `redact: true` marks the telnet log record so the password never lands
+    # on disk verbatim — used by `login` for the password send only.
+    def send_command(command, redact: false)
       raise Error, "session not open" unless open?
       line =
         if command == :return || command == :enter
@@ -84,6 +90,7 @@ module MudManager
           command.to_s
         end
       @socket.write(line + "\r\n")
+      @telnet_log&.chunk(session: @session_id, dir: "out", text: line, redacted: redact)
       line
     end
     alias_method :send, :send_command
@@ -176,7 +183,7 @@ module MudManager
       self.read_until(/Password/i)
 
       # Enter Password
-      self.send_command(password)
+      self.send_command(password, redact: true)
 
       output = self.read_until(/Welcome|Reconnecting|already in use|Wrong password/i)
       if output =~ /Reconnecting|already in use/i
@@ -209,6 +216,7 @@ module MudManager
                 @buffer << text.force_encoding(Encoding::UTF_8)
                 @last_recv_at = monotime
                 @buffer_cv.broadcast
+                @telnet_log&.chunk(session: @session_id, dir: "in", text: text)
               end
             end
           end

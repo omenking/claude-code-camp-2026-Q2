@@ -1,0 +1,5 @@
+{"phase":"session_start","session_id":"killed_mid_sub_run","task":"player","depth":0,"at":"2026-07-22T11:00:00.000-04:00","mono_ms":1000,"model":"claude-opus-4-8","provider":"anthropic","max_iterations":20,"context_window":200000}
+{"phase":"prompt","message_count":1,"messages":[{"role":"user","content":"look around"}],"session_id":"killed_mid_sub_run","task":"player","depth":0,"at":"2026-07-22T11:00:00.010-04:00","mono_ms":1010}
+{"phase":"tool_call","name":"inspect_room","args":{},"session_id":"killed_mid_sub_run","task":"player","depth":0,"at":"2026-07-22T11:00:00.020-04:00","mono_ms":1020}
+{"phase":"task_start","task_name":"room_inspector","max_iterations":12,"model":"claude-haiku-4-5","provider":"anthropic","session_id":"killed_mid_sub_run","task":"room_inspector","depth":1,"at":"2026-07-22T11:00:00.100-04:00","mono_ms":1100}
+{"phase":"tool_call","name":"tbamud__look","args":{},"session_id":"killed_mid_sub_run","task":"room_inspector","depth":1,"at":"2026-07-22T11:00:00.110-04:00","mono_ms":1110}

@@ -1,0 +1,3 @@
+{"seq":1,"at":"2026-07-23T12:00:02.118-04:00","mono_ms":310,"session":"default","mode":"command","tool":"tbamud__look","args":{},"correlation_id":null,"sent":"look","received":"The Common Square\r\n> ","bytes_in":22,"elapsed_ms":118,"error":null}
+{"seq":2,"at":"2026-07-23T12:00:05.100-04:00","mono_ms":610,"session":"default","mode":"command","tool":"tbamud__move","args":{"direction":"north"},"correlation_id":null,"sent":"north","received":"You walk north.\r\n> ","bytes_in":20,"elapsed_ms":100,"error":null}
+{"seq":3,"at":"2026-07-23T12:00:07.050-04:00","mono_ms":810,"session":"default","mode":"poll","tool":"tbamud__poll","args":{},"correlation_id":null,"sent":null,"received":"20H 100M > ","bytes_in":11,"elapsed_ms":5,"error":null}

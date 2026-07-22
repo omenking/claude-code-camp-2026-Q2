@@ -1,9 +1,18 @@
 module Boukensha
   # RunDSL is the object that `self` becomes inside a Boukensha.run block.
-  # It exposes only `tool`, keeping the DSL surface intentionally small.
+  # It exposes `tool` plus the run's `logger`, keeping the DSL surface
+  # intentionally small.
   class RunDSL
-    def initialize(registry)
+    # The run's session logger. A native tool that delegates to a subagent
+    # passes this to Boukensha.run_task so the sub-run writes into THIS session
+    # file instead of minting its own (plan Amendment A). Handed over
+    # explicitly rather than read from an ambient thread-local, so the
+    # delegation graph stays readable and a test can inject a fake.
+    attr_reader :logger
+
+    def initialize(registry, logger: nil)
       @registry = registry
+      @logger   = logger
     end
 
     def tool(name, description:, parameters: {}, &block)
