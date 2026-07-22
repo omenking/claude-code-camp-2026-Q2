@@ -6,6 +6,9 @@ module Api
 
         render json: {
           ok: true,
+          # Reported so a "logging is off" answer can be told apart from
+          # "monitor is looking in the wrong .boukensha".
+          boukensha_dir: cfg.boukensha_dir.to_s,
           telnet_dir: cfg.telnet_dir.to_s,
           manager_dir: cfg.manager_dir.to_s,
           sessions_dir: cfg.sessions_dir.to_s,

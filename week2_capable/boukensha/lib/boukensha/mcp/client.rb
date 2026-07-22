@@ -28,11 +28,30 @@ module Boukensha
 
       def initialize(command:, args: [], env: {})
         cmd = [command.to_s, *Array(args).map(&:to_s)]
-        env = env.each_with_object({}) { |(k, v), h| h[k.to_s] = v.to_s }
+        env = env.each_with_object({}) { |(k, v), h| h[k.to_s] = expand_env(v.to_s) }
         spawn_unbundled { @stdin, @stdout, @stderr, @wait = Open3.popen3(env, *cmd) }
         @id = 0
         handshake
         @tools = fetch_tools
+      end
+
+      # Substitute ${VAR} in an `env:` value from this process's own
+      # environment, so settings.yaml can write a path relative to something
+      # stable instead of the shell's cwd:
+      #
+      #   MUD_TELNET_LOG_DIR: ${BOUKENSHA_DIR}/telnet
+      #
+      # BOUKENSHA_DIR is exported by BoukenshaLoader before anything spawns
+      # (from ~/.boukensharc, or ~/.boukensha), which is the same directory
+      # mud_monitor resolves — a bare `.boukensha/telnet` instead lands
+      # wherever you happened to launch from, and reads to the monitor as
+      # "logging disabled".
+      #
+      # An unset variable is left verbatim rather than blanked: silently
+      # collapsing to "/telnet" would create a directory at the filesystem
+      # root, whereas the literal "${BOUKENSHA_DIR}/telnet" fails visibly.
+      def expand_env(value)
+        value.gsub(/\$\{(\w+)\}/) { ENV.fetch(::Regexp.last_match(1), ::Regexp.last_match(0)) }
       end
 
       # Call a tool. Returns { text:, error: (bool) }.
