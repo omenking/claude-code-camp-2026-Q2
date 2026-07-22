@@ -103,14 +103,31 @@ module BoukenshaLoader
     # --no-tui falls back to the plain terminal REPL (no charm-ruby).
     no_tui = ARGV.delete("--no-tui")
 
-    # Nothing else to pass: the agent's tools all come from settings.yaml's
-    # `mcp_servers:` block, so there is no MUD — or any other tool — to
-    # configure here.
+    # Most tools come from settings.yaml's `mcp_servers:` block. The one native
+    # tool we register here is `inspect_room`: the player calls it to get the
+    # current room back as structured JSON. It does NOT gather any data itself —
+    # it simply hands off to the `room_inspector` subagent (Boukensha.run_task),
+    # which drives the shared MUD session (inspect_room / consider / examine)
+    # and returns the JSON. The player never fetches or parses room text.
+    # This glue is deployment-specific, which is why it lives at the entrypoint
+    # and not in the framework core.
     #
-    # Note this drops the old MUD_* env override. A spawned server inherits
-    # this process's environment, so exporting MUD_HOST still reaches the
-    # daemon, but only for keys its `env:` block doesn't set: config now wins
-    # over the environment, where it used to lose.
-    Boukensha.repl(tui: !no_tui)
+    # Note the MUD_* env override was dropped upstream. A spawned server
+    # inherits this process's environment, so exporting MUD_HOST still reaches
+    # the daemon, but only for keys its `env:` block doesn't set: config now
+    # wins over the environment, where it used to lose.
+    Boukensha.repl(tui: !no_tui) do
+      tool "inspect_room",
+           description:
+             "Survey the current room and get it back as structured JSON " \
+             "(name, exits and where they lead, mobs and their threat level, " \
+             "objects, and anything that happened while you were idle). Use this " \
+             "whenever you arrive somewhere new or need to decide where to go " \
+             "next. Takes no arguments." do |**_|
+        Boukensha::Tools::InspectRoom.call(
+          run: ->(instruction) { Boukensha.run_task(Boukensha::Tasks::RoomInspector, instruction) }
+        )
+      end
+    end
   end
 end

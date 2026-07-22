@@ -49,21 +49,25 @@ class TestMcpServer < Minitest::Test
     assert_match(/You do: kill goblin/, atk["content"][0]["text"])
   end
 
-  def test_inspect_composites_look_and_exits_in_one_call
+  def test_room_survey_is_not_a_daemon_tool_only_primitives_are
+    # The room survey (poll → look → exits) is composed agent-side by the
+    # room_inspector subagent, not by the daemon. The daemon exposes only the
+    # primitives that composition is built from.
     pool = pool_for(@fake)
     out = drive(MudManager::Mcp::Server, pool, [
-      { "id" => 1, "method" => "tools/call",
-        "params" => { "name" => "inspect", "arguments" => {} } }
+      { "jsonrpc" => "2.0", "id" => 1, "method" => "tools/list" }
     ])
+    names = out.find { |m| m["id"] == 1 }["result"]["tools"].map { |t| t["name"] }
 
-    res = out.find { |m| m["id"] == 1 }["result"]
-    assert_equal false, res["isError"]
-    text = res["content"][0]["text"]
-    # A single tool call yields both primitives' output, labelled.
-    assert_match(/== look ==/, text)
-    assert_match(/== exits ==/, text)
-    assert_match(/You do: look/, text)
-    assert_match(/You do: exits/, text)
+    refute_includes names, "inspect_room", "the survey composite must not be a daemon tool"
+    %w[poll look check].each { |t| assert_includes names, t, "primitive #{t} must remain" }
+
+    # And calling the removed composite is now an error, not a survey.
+    err = drive(MudManager::Mcp::Server, pool, [
+      { "id" => 2, "method" => "tools/call",
+        "params" => { "name" => "inspect_room", "arguments" => {} } }
+    ]).find { |m| m["id"] == 2 }["result"]
+    assert_equal true, err["isError"]
   end
 
   def test_bad_enum_is_structured_tool_error_not_jsonrpc_error

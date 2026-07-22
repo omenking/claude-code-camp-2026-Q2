@@ -12,6 +12,60 @@ tasks:
     #model: gpt-5.4-mini
     prompt_override:
       system: true
+    # Pure allowlist (default-deny): the player may call ONLY these. `look` is
+    # absent (room surveys go through the native inspect_room tool), and `check`
+    # is pinned to every kind EXCEPT exits — each rule is validated against the
+    # tool's own enum at startup. Rule names are explicitly prefixed
+    # (`tbamud__...`) to match the mud server's `prefix:` below exactly, rather
+    # than relying on bare-name matching across servers.
+    allow:
+      # Native tool (registered at the entrypoint, not by an MCP server) — no
+      # prefix: form exists for it, unlike every other rule below.
+      - inspect_room
+      - tbamud__move
+      - tbamud__flee
+      - tbamud__set_position
+      - tbamud__track
+      - tbamud__attack
+      - tbamud__skill_strike
+      - tbamud__consider
+      - tbamud__examine
+      - "tbamud__check(kind: score|inventory|equipment|gold|time|weather|levels|wimpy|toggle|where)"
+      - tbamud__say
+      - tbamud__tell
+      # - tbamud__channel_say
+      - tbamud__get_item
+      - tbamud__drop_item
+      - tbamud__put_item
+      - tbamud__equip_item
+      - tbamud__consume_item
+      - tbamud__use_magic_item
+      - tbamud__cast_spell
+      - tbamud__shop
+      - tbamud__practice
+      #- tbamud__save_character
+      #- tbamud__send_raw
+      - tbamud__poll
+      - tbamud__mud_status
+  # A subagent that surveys the current room over the SHARED MUD session and
+  # returns structured JSON. It drives the tools itself (survey, then appraise
+  # each mob), so it needs a small tool slice and room to iterate. Haiku 4.5
+  # now; the provider/model swap to a local Ollama 3B later is config-only, no
+  # code change (see boukensha/lib/boukensha/tasks/room_inspector.rb).
+  room_inspector:
+    provider: anthropic
+    model: claude-haiku-4-5
+    max_iterations: 12
+    prompt_override:
+      system: true
+    # Assembles the survey from primitives (poll → look → exits), then appraises
+    # each mob. `check` is pinned to the one kind it needs: exits.
+    allow:
+      - tbamud__poll
+      - tbamud__look
+      - "tbamud__check(kind: exits)"
+      - tbamud__consider
+      - tbamud__examine
 # EVERY tool the agent has comes from this block. boukensha ships none of its
 # own — it is an MCP host, and an empty mcp_servers means an agent that can
 # only talk. Each entry is one server process: command + args + env, the same
@@ -37,8 +91,8 @@ mcp_servers:
     env:
       MUD_HOST:     localhost
       MUD_PORT:     4000
-      MUD_NAME:     derrano
-      MUD_PASSWORD: testing
+      MUD_NAME:     dummy
+      MUD_PASSWORD: helloworld
 
   # Files. A third-party server nobody wrote boukensha code for — which is the
   # whole point: file access is a server you plug in, not a feature the agent

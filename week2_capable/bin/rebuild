@@ -1,0 +1,21 @@
+#!/bin/sh
+# Build and install the boukensha and mud_manager gems from source.
+#
+# Usage:
+#   week2_capable/bin/rebuild
+
+set -eu
+
+cd "$(dirname "$0")/.."
+
+for gem_dir in boukensha mud_manager; do
+  echo "=== Building $gem_dir ==="
+  (
+    cd "$gem_dir"
+    rm -f "$gem_dir"-*.gem
+    gem build "$gem_dir.gemspec"
+    gem install "$gem_dir"-*.gem
+  )
+done
+
+echo "Rebuild complete."

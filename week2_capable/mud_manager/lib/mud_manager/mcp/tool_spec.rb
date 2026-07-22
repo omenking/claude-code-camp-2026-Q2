@@ -80,16 +80,6 @@ module MudManager
             build: ->(a) { P.look(target: present(a["target"]), preposition: present(a["preposition"])) }
           },
           {
-            name: "inspect", category: "perception", mode: :inspect,
-            description:
-              "Survey a room in a SINGLE call: runs `look` (room description) AND " \
-              "`exits` (visible exits) and returns both together. Prefer this over " \
-              "calling look and then exits separately when you arrive somewhere new " \
-              "and need to decide where to go — it gets the traversal information in " \
-              "one turn instead of two. Takes no arguments.",
-            params: {}
-          },
-          {
             name: "examine", category: "perception", mode: :primitive,
             description: "Examine a target in detail (more verbose than look).",
             params: {

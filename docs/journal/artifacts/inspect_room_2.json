@@ -1,0 +1,47 @@
+{
+  "name": "The Temple Square",
+  "description": "You are standing on the temple square. Huge marble steps lead up to the temple gate. The entrance to the Clerics' Guild is to the west, and the old Grunting Boar Inn, is to the east. Just south of here you see the market square, the center of Midgaard.",
+  "exit_targets": {
+    "north": "The Temple Of Midgaard",
+    "east": "The Entrance Hall Of The Grunting Boar Inn",
+    "south": "Market Square",
+    "west": "The Entrance To The Clerics' Guild"
+  },
+  "hp": 20,
+  "mana": 100,
+  "move": 85,
+  "mobs": [
+    {
+      "keyword": "janitor",
+      "desc": "A janitor is walking around, cleaning up.",
+      "threat": "The perfect match!",
+      "health": "excellent condition",
+      "equipment": []
+    },
+    {
+      "keyword": "janitor",
+      "desc": "A janitor is walking around, cleaning up.",
+      "threat": "The perfect match!",
+      "health": "excellent condition",
+      "equipment": []
+    },
+    {
+      "keyword": "cityguard",
+      "desc": "A cityguard stands here.",
+      "threat": "Are you mad!?",
+      "health": "excellent condition",
+      "equipment": []
+    }
+  ],
+  "objects": [
+    {
+      "keyword": "fountain",
+      "desc": "A large fountain carved from blue-streaked marble is here, bubbling merrily."
+    }
+  ],
+  "look_candidates": ["marble", "steps", "fountain"],
+  "events": [
+    "The janitor has arrived.",
+    "The cityguard leaves east."
+  ]
+}

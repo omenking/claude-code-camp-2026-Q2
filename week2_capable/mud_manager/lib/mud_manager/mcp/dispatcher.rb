@@ -45,24 +45,17 @@ module MudManager
           @pool.poll(id)
         when :status
           @pool.connected?(id) ? "connected to #{@pool.describe(id)}" : "disconnected"
-        when :inspect
-          inspect_room(id)
         else
           raise ProtocolError.new("unknown_tool", "tool #{name} has unknown mode #{tool[:mode]}")
         end
       end
 
-      private
-
-      # Composite survey: fold the two primitives an agent otherwise runs
-      # back-to-back on arrival (look + exits) into one round-trip, returning
-      # their labelled outputs together so the model gets room description and
-      # traversal information in a single tool call.
-      def inspect_room(id)
-        look  = @pool.run_command(id, MudManager::Primitives.look)
-        exits = @pool.run_command(id, MudManager::Primitives.info_self("exits"))
-        "== look ==\n#{look}\n\n== exits ==\n#{exits}"
-      end
+      # The room survey composite (poll → look → exits) is deliberately NOT a
+      # daemon tool. The daemon exposes only primitives; the composite is
+      # assembled agent-side by the boukensha `room_inspector` subagent, which
+      # calls `poll`, `look`, and `check(kind: "exits")` itself. Keeping
+      # composition out of the daemon means every consumer sees the same flat
+      # primitive surface and no policy about "what a survey is" lives here.
     end
   end
 end

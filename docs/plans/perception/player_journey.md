@@ -3,13 +3,19 @@
 THe purpose of this document is think out-loud how a player would attempt to play the game
 and try to formalize it into player strategies or player situational personas.
 
-## New Players Assumptions
+## New Players Assumptions Initial Player Knowledgbase
+Create your initial persona's players knowledbgase
+Imagine you are playing the game, what knowledge what you bring first before play?
+If you read the help or online information just copy and summarize as a partial st starting memory.
+
+
 - player assumes the game is marketed as completly open world without any hand-holding or clear direction
 - main game loop, kill > loot > train skills (repeat)
 - its not story driven, the story is the players unique journey experience:
   - eg. fell into a a dark well by accident, found low level rats with lots of experiences found a an early game meta to share with people.
 - anything in safe zone in a town likely attacking a guard would be considered negative alignment but outside of town a guard may not give negative alignment because its not safe zone.
 - trying things might be necessary because there no flavour text or look information to tell you someone has something.
+- movement points is the distance you can move before you need to rest.
 
 ## Players First Priorities
 We start with nothing.
@@ -40,7 +46,7 @@ Player Optimization
     - grind with no weapon for second weapon
     - is thier low level gear I can discover instead of buying in the first area
 
-## First Time Journey
+## First Time Journey (Andrew Person)
 
 - Spawn in starting location.
 - Walk around the safe zone and determine the key points of interest

@@ -13,5 +13,14 @@ module Boukensha
     def tool_names
       @registry.tool_names
     end
+
+    # Invoke an already-registered tool by name (including MCP tools such as
+    # `tbamud__inspect_room`) and return its result. This is what lets a
+    # native tool defined in a run/repl block compose over the tools the MCP
+    # servers contributed — the seam the player's `inspect_room` uses to reach
+    # the daemon survey before delegating the parse to a subagent.
+    def call_tool(name, **args)
+      @registry.dispatch(name.to_s, args)
+    end
   end
 end

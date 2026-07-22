@@ -92,3 +92,24 @@ it seems like SQL will be our winning data store but we need to determine the da
 - Description
 
 
+## Creative Reasoning
+My goal to defat the minotaur in the newbie zone.
+I have explored everywhere I have found a locked door and a locked grate.
+I see no path forward so I need to figure out how to unlock the door.
+
+What would be the reasonable boundaries of solving the problem:
+problem: I dont have key
+- the key is likely in the newbie zone
+- the key is held by someone one
+- the key is hidden within interactive entity eg. under rock
+
+I see a gaurd, I looked at them and they never mentioned having a key, and they room description doesn't a key.
+
+They are a guard, and gaurds do have key,
+The guard is outside of town, and therefor I will not negative alignment for killing them.
+If I kill them they will respawn
+
+
+
+How does the agent know that their obstacle is a door?
+How will they know to reason to try to find one?>
