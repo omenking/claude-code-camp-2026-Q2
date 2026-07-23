@@ -10,3 +10,16 @@
 __pycache__/
 *.pyc
 *.gem
+# look_candidates model weights — 41MB, fetched via `rake model:fetch` using the
+# sha256 + URL in the committed manifest.json (docs/plans/week_2/look_candidates_runtime.md 9.9)
+.boukensha/models/**/*.onnx
+.boukensha/models/**/vocab.json
+
+# NLP corpus + training scratch: regenerate with extract.rb from the .wld files.
+# splits.json/stats.json ARE committed — they are what make results reproducible.
+docs/plans/week_2/nlp_look_candidates/data/rooms.jsonl
+docs/plans/week_2/nlp_look_candidates/data/t3_input.json
+docs/plans/week_2/nlp_look_candidates/data/t3_preds.json
+docs/plans/week_2/nlp_look_candidates/data/sample.txt
+docs/plans/week_2/nlp_look_candidates/build/
+docs/plans/week_2/nlp_look_candidates/venv/

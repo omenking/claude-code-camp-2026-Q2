@@ -1,0 +1,91 @@
+[
+  {
+    "vnum": 3200,
+    "name": "Under The Bridge",
+    "description": "The arch under the bridge is covered by seaweed about a foot above the surface of the river. The water gently flows through an opening in the lower part of the city wall.",
+    "exit_targets": {
+      "north": "On The River",
+      "east": "On The Swift Flowing River"
+    }
+  },
+  {
+    "vnum": 3304,
+    "name": "The Smithery",
+    "description": "Devastation greets your eyes. The forge has been blasted apart, along with most of the back door. Hammers, tongs, and anvils lie about in one gigantic mess, and the smith's bed smoulders yet. This place has been utterly wrecked and blasted apart, by more than one man you would think from all the tracks in the dust...",
+    "exit_targets": {
+      "north": "A Small Garden",
+      "east": "Outside A House"
+    }
+  },
+  {
+    "vnum": 3305,
+    "name": "A Small Garden",
+    "description": "This garden was probably once kept orderly and weedless. Unfortunately, it seems someone has been careless with a fireball. There is nothing here now but blast-marks and ashes, and the remains of a trail leading to the east edge of this tiny valley.",
+    "exit_targets": {
+      "north": "Mountain Ridge",
+      "east": "The Smithery"
+    }
+  },
+  {
+    "vnum": 3306,
+    "name": "Mountain Ridge",
+    "description": "You are standing on a ridge in the mountains, just east of a very small valley. You spot a tiny cottage sitting in the center of the valley, and the ridge continues south. Looking at the sheer drops to the north and west, you consider not taking those directions.",
+    "exit_targets": {
+      "north": "The Mountain Ridge",
+      "east": "A Small Garden"
+    }
+  },
+  {
+    "vnum": 3307,
+    "name": "The Mountain Ridge",
+    "description": "The mountain range continues north from here, and widens out into a small plateau just to your south. Going east and west from here would be a bad idea, considering the steepness of the drop. From this height, you have a fairly good panoramic view to the south, including what appears to be a small mountain village to your south and west, and a tall, ominous peak westwards from here.",
+    "exit_targets": {
+      "north": "Mountain Ridge",
+      "east": "The Diverging Paths"
+    }
+  },
+  {
+    "vnum": 3308,
+    "name": "The Diverging Paths",
+    "description": "You are standing on a small plateau in the mountains, just south of a ridge that leads northwards through the rocky area. To the east, south, and west are gentle slopes leading down into different areas of the mountains. A giant, dark peak looks down over you to the west, looking quite spooky indeed!",
+    "exit_targets": {
+      "north": "The Mountain Ridge",
+      "east": "A Rocky Slope",
+      "south": "A Steep Slope"
+    }
+  },
+  {
+    "vnum": 3201,
+    "name": "On The River",
+    "description": "North of here you see the miserable buildings of Poor Alley. The river flows west towards the bridge. The riverbanks are too steep to climb.",
+    "exit_targets": {
+      "north": "On The River",
+      "east": "Under The Bridge"
+    }
+  },
+  {
+    "vnum": 3202,
+    "name": "On The River",
+    "description": "North of here you see the dump. The river flows from east to west. The riverbanks are too steep to climb.",
+    "exit_targets": {
+      "north": "On The River"
+    }
+  },
+  {
+    "vnum": 3203,
+    "name": "On The River",
+    "description": "The levee is directly north of here. The river flows in an east west direction.",
+    "exit_targets": {
+      "north": "The Levee",
+      "east": "On The River"
+    }
+  },
+  {
+    "vnum": 3204,
+    "name": "On The River",
+    "description": "You see the warehouse on the northern riverbank. East of here you see the city wall. The river flows west towards the levee.",
+    "exit_targets": {
+      "north": "On The River"
+    }
+  }
+]

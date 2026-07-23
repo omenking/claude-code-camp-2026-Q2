@@ -1,3 +1,24 @@
+# Native tools (registered at the entrypoint, not by an MCP server).
+tools:
+  inspect_room:
+    # `look_candidates` — which nouns in the room prose are worth `look`ing at.
+    # Scored locally by a 41M ONNX model (~7ms/room, $0), NOT by an LLM: a model
+    # trained on the world files' own extra-descriptions beats a paid one at the
+    # task, because supervision beats priors here.
+    # See docs/plans/week_2/look_candidates_runtime.md.
+    look_candidates:
+      # The only knob: `none` turns the model off even when its weights are
+      # installed — for A/B-ing whether this field earns its probes, or for
+      # ruling it out when a room record looks wrong. Missing weights already
+      # degrade to an empty field on their own, so this is not an install flag.
+      #
+      # Threshold and top-k are deliberately NOT settings. They are swept
+      # against held-out rooms at build time and written into the artifact's
+      # manifest.json, so they travel with the weights they were measured on —
+      # pin them here and a rebuild silently decouples the number from its
+      # evidence. Same for model_dir: it is <boukensha dir>/models/look_candidates.
+      extractor: model                      # none | model
+
 tasks:
   player:
     provider: anthropic 
@@ -47,19 +68,17 @@ tasks:
       #- tbamud__send_raw
       - tbamud__poll
       - tbamud__mud_status
-  # A subagent that surveys the current room over the SHARED MUD session and
-  # returns structured JSON. It drives the tools itself (survey, then appraise
-  # each mob), so it needs a small tool slice and room to iterate. Haiku 4.5
-  # now; the provider/model swap to a local Ollama 3B later is config-only, no
-  # code change (see boukensha/lib/boukensha/tasks/room_inspector.rb).
+  # The room survey over the SHARED MUD session. It has NO provider, model or
+  # prompt: Tools::RoomInspector drives these primitives from Ruby, because the
+  # sequence is fixed and the parse is mechanical. Asking a model which of five
+  # known commands to run next cost 18.6s and three inferences per room.
+  #
+  # This block survives purely as the survey's PERMISSION SCOPE — it is what
+  # Boukensha.task_dispatcher scopes to, so dropping the LLM did not widen the
+  # tool surface. `look` appears here and nowhere in the player's allowlist,
+  # which is what makes inspect_room the only route to a room survey.
   room_inspector:
-    provider: anthropic
-    model: claude-haiku-4-5
-    max_iterations: 12
-    prompt_override:
-      system: true
-    # Assembles the survey from primitives (poll → look → exits), then appraises
-    # each mob. `check` is pinned to the one kind it needs: exits.
+    # `check` is pinned to the one kind it needs: exits.
     allow:
       - tbamud__poll
       - tbamud__look

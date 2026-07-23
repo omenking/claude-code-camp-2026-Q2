@@ -2,7 +2,6 @@ require_relative "boukensha/version"
 require_relative "boukensha/config"
 require_relative "boukensha/permissions"
 require_relative "boukensha/tasks/player"
-require_relative "boukensha/tasks/room_inspector"
 
 module Boukensha
   @quiet  = false
@@ -348,6 +347,43 @@ module Boukensha
   end
   private_class_method :register_task_tools
 
+  # A permission-scoped tool dispatcher for a task that has NO model.
+  #
+  #   call = Boukensha.task_dispatcher("room_inspector", logger: parent)
+  #   call.call("tbamud__look", {})   # => the MUD's text
+  #
+  # It reuses everything run_task assembles except the agent: the same shared
+  # MCP clients (#mcp_clients, so a survey drives the player's live session with
+  # no second login), the same `allow:` scoping, the same Registry. Removing the
+  # LLM therefore does not widen the tool surface — the allowlist keeps
+  # enforcing rather than becoming decoration.
+  #
+  # `logger:` — pass the caller's logger and every call is bracketed with
+  # tool_call/tool_result stamped with this task's name, which is the shape
+  # mud_monitor's session view reads. The task_start/task_end pair is the
+  # caller's to open (see Tools::InspectRoom's registration), because it brackets
+  # the whole survey rather than each command.
+  def self.task_dispatcher(task_name, logger: nil)
+    cfg      = config
+    perms    = task_permissions(cfg, task_name)
+    ctx      = Context.new(system: "", context_window: 0, working_dir: Dir.pwd)
+    registry = Registry.new(ctx, permissions: perms)
+    register_task_tools(registry, cfg, perms)
+    perms.validate_referenced!(registry.tool_names)
+
+    lambda do |name, args = {}|
+      logger&.tool_call(name: name, args: args)
+      begin
+        result = registry.dispatch(name, args)
+      rescue StandardError => e
+        logger&.tool_result(name: name, result: "", ok: false, error: e.message)
+        raise
+      end
+      logger&.tool_result(name: name, result: result)
+      result
+    end
+  end
+
   # Build the Permissions for a task from its `allow:` block. Default-deny: a
   # task with no `allow:` block may call NOTHING. (The standalone/test path that
   # calls register_mcp_servers with no permissions is permissive — unrelated.)
@@ -378,4 +414,7 @@ require_relative "boukensha/run_dsl"
 require_relative "boukensha/repl"
 require_relative "boukensha/tools/mcp"
 require_relative "boukensha/tools/inspect_room"
+# `onnxruntime` is only required when a model is actually loaded, so a checkout
+# without the artifact (or without the gem) still boots.
+require_relative "boukensha/extractors"
 require_relative "boukensha/tui"

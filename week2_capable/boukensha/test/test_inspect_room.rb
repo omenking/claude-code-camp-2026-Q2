@@ -1,23 +1,29 @@
 require_relative "helper"
+require "json"
 
-# The inspect_room feature: the player's native tool triggers the agentic
-# room_inspector subagent (which drives the shared MUD session itself), plus the
-# shared-session tool-visibility filter. These cover the seams with fakes — no
-# live API or MCP server required.
+# The inspect_room feature: the player's native tool, the permission-scoped
+# dispatcher it drives the MUD through, and the shared-session tool-visibility
+# filter. These cover the seams with fakes — no live API or MCP server required.
+# The survey's own parsing and sequencing live in test_room_inspector.rb.
 class TestInspectRoom < Minitest::Test
   include McpTestHelper
 
-  # --- the player-facing tool: trigger subagent, return clean JSON ----------
+  # --- the player-facing tool ----------------------------------------------
 
-  def test_call_triggers_subagent_with_instruction_and_returns_clean_json
-    seen = nil
-    result = Boukensha::Tools::InspectRoom.call(
-      run: ->(instruction) { seen = instruction; %({"name":"Market Square"}) }
-    )
+  # The player passes NO room data in and gets bare JSON back; everything
+  # between is RoomInspector driving the injected dispatcher.
+  def test_call_surveys_through_the_injected_dispatcher_and_returns_bare_json
+    calls = []
+    call_tool = lambda do |name, args = {}|
+      calls << name
+      name.end_with?("look") ? "Market Square\r\n   A statue.\r\n[ Exits: n ]\r\n" : ""
+    end
 
-    # The player passes NO room data in — it just kicks off the inspector.
-    assert_equal Boukensha::Tools::InspectRoom::INSTRUCTION, seen
-    assert_equal %({"name":"Market Square"}), result
+    result = Boukensha::Tools::InspectRoom.call(call_tool: call_tool)
+
+    assert_equal %w[tbamud__poll tbamud__look tbamud__check], calls
+    assert_equal "Market Square", JSON.parse(result)["name"]
+    refute_match(/```/, result)
   end
 
   def test_clean_json_strips_a_stray_markdown_fence
@@ -27,8 +33,10 @@ class TestInspectRoom < Minitest::Test
     assert_equal bare, Boukensha::Tools::InspectRoom.clean_json(bare)
   end
 
-  def test_run_task_is_available_for_subagent_delegation
-    assert_respond_to Boukensha, :run_task
+  # The survey runs under room_inspector's allowlist, not the player's — which
+  # is what keeps `look` off the player and out of reach except through here.
+  def test_task_dispatcher_is_available_and_scoped_to_a_task
+    assert_respond_to Boukensha, :task_dispatcher
   end
 
   # --- permission rule parsing (matcher strings + pipes) --------------------

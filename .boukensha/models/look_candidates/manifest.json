@@ -1,0 +1,39 @@
+{
+  "built_at": "2026-07-23T15:18:52Z",
+  "git_sha": "5a2e178",
+  "base_model": "google/bert_uncased_L-8_H-512_A-8",
+  "split": "walk",
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "chosen_seed": 3,
+  "quantization": "int8",
+  "model_file": "model.onnx",
+  "vocab_file": "vocab.json",
+  "model_sha256": "8dc74be5277dcd212bf207acaa748a0ea514b6bc3ed710cc6b48b3e1c944f576",
+  "model_bytes": 41552833,
+  "download_url": null,
+  "context_fields": [
+    "name",
+    "exits"
+  ],
+  "max_len": 256,
+  "word_regex": "[A-Za-z]{2,}",
+  "candidate_regex": "[a-z]{3,}",
+  "stopwords_sha256": "6c01b353ef2ee0ff6db1a5b7e532ca22ed175fe87f6eee350a8e5420e08ec771",
+  "threshold": 0.8,
+  "top_k": 3,
+  "eval": {
+    "scorer": "ruby",
+    "rooms": 340,
+    "rooms_with_gold": 83,
+    "p": 0.5563,
+    "r": 0.5524,
+    "f1": 0.5544,
+    "speaks_pct": 26.8,
+    "probes_per_room": 0.42,
+    "ms_per_room": 7.3
+  }
+}

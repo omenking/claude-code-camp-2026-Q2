@@ -8,8 +8,19 @@ require "json"
 #
 # The model round-trip is faked (Boukensha::Client is stubbed) and no MCP server
 # is configured, so this exercises the real run_task wiring with no network.
+#
+# The subagent under test is defined here rather than imported: `room_inspector`
+# stopped being an LLM task when Tools::RoomInspector replaced it with a scripted
+# survey, but run_task's delegated-logging contract is a FRAMEWORK feature and
+# still needs covering. The task name is kept so the assertions still describe
+# the case the feature was built for.
 class TestDelegatedSession < Minitest::Test
   include McpTestHelper
+
+  class DelegatedTask < Boukensha::Tasks::Base
+    def self.task_name = "room_inspector"
+    def self.system_prompt(*, **) = "You are a subagent."
+  end
 
   SETTINGS = <<~YAML
     tasks:
@@ -114,7 +125,7 @@ class TestDelegatedSession < Minitest::Test
   def run_room_inspector(**kwargs)
     with_settings(SETTINGS) do
       with_fake_client do
-        Boukensha.run_task(Boukensha::Tasks::RoomInspector, "inspect", **kwargs)
+        Boukensha.run_task(DelegatedTask, "inspect", **kwargs)
       end
     end
   end

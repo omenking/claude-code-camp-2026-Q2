@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-07-23T11:59:28Z",
+  "source": "week0_explore/preview/data/world/wld",
+  "rooms": 12668,
+  "rooms_walkable": 1861,
+  "walkable_gold_density_pct": 21.92,
+  "rooms_dropped_nodesc": 11,
+  "zones": 189,
+  "rooms_with_gold": 1568,
+  "rooms_with_gold_pct": 12.38,
+  "gold_blocks_all": 2380,
+  "gold_blocks_scored": 2175,
+  "gold_blocks_meta": 205,
+  "multi_alias_blocks": 1433,
+  "recall_ceiling_pct": 79.82,
+  "unreachable_blocks": 439,
+  "token_positive_rate_pct": 0.695,
+  "distinct_positive_words": 1038,
+  "ambiguous_positive_words": 925,
+  "ambiguous_pct": 89.11,
+  "most_contested": [
+    {
+      "word": "trees",
+      "pos": 87,
+      "neg": 593,
+      "purity": 12.8
+    },
+    {
+      "word": "path",
+      "pos": 69,
+      "neg": 965,
+      "purity": 6.7
+    },
+    {
+      "word": "sign",
+      "pos": 63,
+      "neg": 191,
+      "purity": 24.8
+    },
+    {
+      "word": "wall",
+      "pos": 46,
+      "neg": 1202,
+      "purity": 3.7
+    },
+    {
+      "word": "floor",
+      "pos": 40,
+      "neg": 1067,
+      "purity": 3.6
+    },
+    {
+      "word": "stone",
+      "pos": 35,
+      "neg": 648,
+      "purity": 5.1
+    },
+    {
+      "word": "door",
+      "pos": 33,
+      "neg": 679,
+      "purity": 4.6
+    },
+    {
+      "word": "walls",
+      "pos": 32,
+      "neg": 1871,
+      "purity": 1.7
+    },
+    {
+      "word": "desk",
+      "pos": 29,
+      "neg": 113,
+      "purity": 20.4
+    },
+    {
+      "word": "trail",
+      "pos": 29,
+      "neg": 423,
+      "purity": 6.4
+    },
+    {
+      "word": "hole",
+      "pos": 23,
+      "neg": 269,
+      "purity": 7.9
+    },
+    {
+      "word": "gate",
+      "pos": 22,
+      "neg": 273,
+      "purity": 7.5
+    }
+  ],
+  "purity_of_frequent": {
+    "n": 114,
+    "p25": 4.4,
+    "median": 8.6,
+    "p75": 17.1
+  },
+  "distinct_aliases": 1373,
+  "split_sizes": {
+    "zone": {
+      "train": 9860,
+      "test": 2808,
+      "train_zones": 151,
+      "test_zones": 38
+    },
+    "room": {
+      "train": 10134,
+      "test": 2534
+    }
+  }
+}

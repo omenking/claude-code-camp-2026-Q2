@@ -3,6 +3,7 @@ PATH
   specs:
     boukensha (0.13.0)
       charm
+      onnxruntime (~> 0.11)
 
 GEM
   remote: https://rubygems.org/
@@ -27,6 +28,7 @@ GEM
       lipgloss
       ntcharts
     dotenv (3.2.0)
+    ffi (1.17.4-x86_64-linux-gnu)
     glamour (0.2.2)
     glamour (0.2.2-x86_64-linux-gnu)
     gum (0.3.2)
@@ -36,6 +38,8 @@ GEM
     lipgloss (0.2.2-x86_64-linux-gnu)
     ntcharts (0.1.2)
     ntcharts (0.1.2-x86_64-linux-gnu)
+    onnxruntime (0.11.4-x86_64-linux)
+      ffi
 
 PLATFORMS
   ruby

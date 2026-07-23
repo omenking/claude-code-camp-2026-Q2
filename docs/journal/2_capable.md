@@ -111,6 +111,96 @@ It didn't like security for passwords, or size of logs, but they are okay for ou
 It broke it plan to mud_monitor into 10 phases, Im not sure how much confidence I have in to do that much work.
 I only had to run to phase 6, after implementation we discovered that each subtask will spawn a new log/session and thats a problems so I asked Claude to fix it.
 
+-  http://localhost:5173/sessions/20260722T231230Z-e16fba10, It says 35s from delegating to the subtask, I dont think the subtask adds up to 35s but there is more time being sent doing useless things, I was expecting the subtask only doing parsing but iterally doing its own loop instead of a single turn calling consider and exmaine which is going to consume more time then just a script that will iterate through them.
+
+## Step 9: (NLP Lookup Candidaites) ~ Fix Implementation of RoomInspector and Add Skill for Troubleshooting
+
+We have more rich logging and might be a good idea to create a slash command skill /mud-debug that is aware of our telnet logs, mud manager logs, agent logs. It already naturally does this but better guidance could have better results.
+
+I thought about it and it seems like an NLP solution must be possible that would very performant.
+We can just create test and validation data for world data and create own data to test it.
+
+AI proposed three NLP solutions, and I didn't trust them, and asked to make test data and validation from world data, and all three of its test failed, not because NLP can't work its just its overconfident without testing.
+
+I left Claude Opus running with dangerously permissions and it 
+
+         Model         │ params │ PR-AUC │ best F1 │
+├───────────────────────┼────────┼────────┼─────────┤
+│ BERT-mini, no context │  11.2M │  14.2% │   18.9% │
+├───────────────────────┼────────┼────────┼─────────┤
+│ BERT-mini + context   │  11.2M │  15.8% │   21.8% │
+├───────────────────────┼────────┼────────┼─────────┤
+│ BERT-small + context  │    29M │  18.0% │   22.6% │
+├───────────────────────┼────────┼────────┼─────────┤
+│ BERT-medium + context │    41M │  19.2% │   23.1% │
+├───────────────────────┼────────┼────────┼─────────┤
+│ BERT-base + context   │   110M │  21.9% │   23.5% │
+│                      │   P   │   R   │  F1   │  speaks in   │
+├──────────────────────┼───────┼───────┼───────┼──────────────┤
+│ qwen3.5 7B zero-shot │  9.2% │ 25.9% │ 13.5% │ 45% of rooms │
+├──────────────────────┼───────┼───────┼───────┼──────────────┤
+│ BERT-medium 41M      │ 19.4% │ 30.9% │ 23.9% │ 21% of rooms │
+
+And its results it summarized with qwen wasn't good, and BERT Medium 41M beat out qwen, but qwen didn't have thinking on and it could thinking could make it slow. BERT-medium they said it could detect 1/3 candidates in a room but 87% of the rooms were empty. I think we need to seperate out all the teleporter room data, or just load CircleMud's dataset which will give us a reaslitc dataset. I think it was also saying we should just determine if we think the room is empty. 
+
+We never tested haiku's ability to detech candidaites.
+
+It checked only walkable rooms and now it says it when from 2 in 5 to 1 in 5. ITs stats changed but isays it doest better.
+
+┌──────────────────────────────────┬─────────┬────────┐
+│                                  │ best F1 │ PR-AUC │
+├──────────────────────────────────┼─────────┼────────┤
+│ BERT-base, all rooms (110M)      │   23.5% │  21.9% │
+├──────────────────────────────────┼─────────┼────────┤
+│ BERT-medium, all rooms (41M)     │   23.1% │  19.2% │
+├──────────────────────────────────┼─────────┼────────┤
+│ BERT-medium, walkable only (41M) │   28.1% │  27.5% │
+
+detection is a dial you pick, not a fixed number:
+┌─────────────────────────────┬─────────────┬───────────┬───────┐
+│          strategy           │ probes/room │ time/room │ finds │
+├─────────────────────────────┼─────────────┼───────────┼───────┤
+│ probe every word (no model) │        20.4 │     24.5s │ 89.5% │
+├─────────────────────────────┼─────────────┼───────────┼───────┤
+│ model, top-3, no gate       │         3.0 │      3.6s │ 80.4% │
+├─────────────────────────────┼─────────────┼───────────┼───────┤
+│ model, top-3, score ≥0.3    │        0.35 │      0.4s │ 24.5% │
+├─────────────────────────────┼─────────────┼───────────┼───────┤
+│ model, top-1, score ≥0.9    │        0.18 │      0.2s │ 18.2% │
+├─────────────────────────────┼─────────────┼───────────┼───────┤
+│ no feature                  │           0 │
+└─────────────────────────────┴─────────────┴───────────┴───────┘
+
+Okay so basically Top-3 no gate with 3 probs would get 80% there with 3.6s
+
+│                  │ precision │ recall │
+├──────────────────┼───────────┼────────┤
+│ Trained model    │     30.2% │  24.5% │
+├──────────────────┼───────────┼────────┤
+│ Haiku (best arm) │     20.3% │  38.5% │
+Haiku wasn't better and our trained model obviously performed better at $0 cost and is much faster.
+The truth is we probably don't need to catch everything, but we need to figure out when we get stuck then use reasoning and that can do deeper probes of reasoning and we would at that point have the room descriptions stored in our db to do a lookup without evoking the MUD.
+
+I had it write a journal in our SHRED format in docs/plans/week_2/nlp_look_candidaites/JOURNAL.md
+
+I never implemented the troubleshooter and we spend out time jsut focused on the look_candidates
+
+## Step 10 - Integrate Look Candididates Into our RoomInspector
+
+So we have a possible solution with our trained model
+We also need to parse json manually
+
+New plan at: docs/plans/week_2/look_candidates_runtime
+
+I had it implement the new room_inspector.
+It did expose tools with settings, which I guess is fine.
+Extractor appears to be the model itself in the codebase
+I have no observed the room_inspector run but claude is saying:
+- Was slow: 33.8s per room. Now: ~5s. Could be ~0.5s.
+It thinks the TUI redraws every 60ms and its adding a delay.
+
+We will need to perform a test with and without the tui.
+
 
 ## Technical Conclusions
 Reflecting back your education guesses from the technical uncertainty section what was the technical outcomes. Is there any new technical uncertainty that has been put aside for future exploration. Are there any next steps or technical considerations worth noting?

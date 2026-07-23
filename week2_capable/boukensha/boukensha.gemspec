@@ -23,5 +23,10 @@ Gem::Specification.new do |spec|
   # `charm`, for the TUI (bubbletea + lipgloss + bubbles bindings).
   spec.add_dependency "charm"
 
+  # Scores `look_candidates` locally (Extractors::Model). Resolves to a prebuilt
+  # platform gem — no compiler, no libonnxruntime install, no Python at runtime.
+  # Optional in practice: without the model artifact the extractor returns [].
+  spec.add_dependency "onnxruntime", "~> 0.11"
+
   # open3, net/http, and json are stdlib. Users supply their own ANTHROPIC_API_KEY.
 end
