@@ -77,6 +77,32 @@ module Api
         assert_response :not_found
       end
 
+      test "messages returns the definitive per-call payload — system, tools and wire messages" do
+        get messages_api_v1_session_path("request_timeline")
+
+        assert_response :success
+        cps = response.parsed_body["checkpoints"]
+
+        assert_equal 4, cps.length
+        assert_equal "request", cps.first["source"]
+        # the system prompt and full tool schemas — invisible in the transcript
+        assert_equal "You are a MUD player.", cps.first["system"]
+        assert_equal %w[look move], cps.first["tools"].map { |t| t["name"] }
+        # constants carried forward on the next call
+        assert_equal "You are a MUD player.", cps[1]["system"]
+        assert_not cps[1]["system_changed"]
+        # compaction + clear surfaced as markers with the delta
+        assert_equal "compaction", cps[2]["marker"]
+        assert_equal 1, cps[2]["dropped"]
+        assert_equal "clear", cps[3]["marker"]
+      end
+
+      test "messages 404s for an unknown session id" do
+        get messages_api_v1_session_path("does-not-exist")
+
+        assert_response :not_found
+      end
+
       test "stream flushes pending entries as SSE frames, then sends eof once idle" do
         cfg = Rails.application.config.x.mud_monitor
         previous_timeout = cfg.stream_idle_timeout

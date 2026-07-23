@@ -10,7 +10,7 @@ require "json"
 # is configured, so this exercises the real run_task wiring with no network.
 #
 # The subagent under test is defined here rather than imported: `room_inspector`
-# stopped being an LLM task when Tools::RoomInspector replaced it with a scripted
+# stopped being an LLM task when Tools::InspectRoom replaced it with a scripted
 # survey, but run_task's delegated-logging contract is a FRAMEWORK feature and
 # still needs covering. The task name is kept so the assertions still describe
 # the case the feature was built for.

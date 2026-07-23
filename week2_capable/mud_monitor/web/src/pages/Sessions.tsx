@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { ApiRequestError, fetchSessions } from "../api/client";
 import type { SessionSummary } from "../api/types";
 import TaskChip from "../components/TaskChip";
-import { fmtCost, formatTime, pct, truncate } from "../format";
+import { fmtCost, fmtDuration, formatTime, pct, truncate } from "../format";
 
 // Port of week1_baseline/log_viz/views/index.erb.
 export default function Sessions() {
@@ -31,6 +31,7 @@ export default function Sessions() {
           <thead>
             <tr>
               <th>Started</th>
+              <th className="nowrap">Duration</th>
               <th>Session ID</th>
               <th>Task</th>
               <th>Model(s)</th>
@@ -44,6 +45,9 @@ export default function Sessions() {
             {sessions.map((session) => (
               <tr key={session.id}>
                 <td className="nowrap">{formatTime(session.started_at)}</td>
+                <td className="nowrap duration-cell" title={`ended ${formatTime(session.ended_at)}`}>
+                  {fmtDuration(session.duration_ms)}
+                </td>
                 <td>
                   <Link to={`/sessions/${session.id}`}>{session.id}</Link>
                   {session.any_limit_tripped && (

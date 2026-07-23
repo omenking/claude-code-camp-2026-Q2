@@ -1,4 +1,12 @@
-import type { ApiError, DroppedDiff, ManagerPage, SessionDetail, SessionSummary, TelnetPage } from "./types";
+import type {
+  ApiError,
+  DroppedDiff,
+  ManagerPage,
+  MessagesTimeline,
+  SessionDetail,
+  SessionSummary,
+  TelnetPage,
+} from "./types";
 
 class ApiRequestError extends Error {
   constructor(
@@ -24,6 +32,12 @@ export function fetchSessions(): Promise<{ sessions: SessionSummary[] }> {
 
 export function fetchSession(id: string): Promise<SessionDetail> {
   return get(`/sessions/${encodeURIComponent(id)}`);
+}
+
+// The raw message array handed to the model on every call — what the curated
+// transcript can't show. On-demand: the sidebar calls this when opened/refreshed.
+export function fetchSessionMessages(id: string): Promise<MessagesTimeline> {
+  return get(`/sessions/${encodeURIComponent(id)}/messages`);
 }
 
 export interface ManagerFilters {

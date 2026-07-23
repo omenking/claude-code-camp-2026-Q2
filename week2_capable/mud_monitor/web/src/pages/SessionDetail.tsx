@@ -8,10 +8,11 @@ import CostTable from "../components/CostTable";
 import CtxChip from "../components/CtxChip";
 import Duration from "../components/Duration";
 import LiveBadge from "../components/LiveBadge";
+import MessagesSidebar from "../components/MessagesSidebar";
 import ProgressBar from "../components/ProgressBar";
 import Sparkline from "../components/Sparkline";
 import TaskChip, { taskHue } from "../components/TaskChip";
-import { fmtCost, fmtDelta, fmtTokens, formatArgs, formatTime, pct, pctRaw } from "../format";
+import { fmtCost, fmtDelta, fmtDuration, fmtTokens, formatArgs, formatTime, pct, pctRaw } from "../format";
 
 const AT_BOTTOM_THRESHOLD_PX = 80;
 
@@ -28,6 +29,9 @@ export default function SessionDetail() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [liveSummary, setLiveSummary] = useState<SessionSummary | null>(null);
   const [newestSeq, setNewestSeq] = useState<number | null>(null);
+  // Which request's payload the sidebar is showing (1-based request ordinal),
+  // or null when the drawer is closed. Set by the inline buttons in the transcript.
+  const [focusedRequest, setFocusedRequest] = useState<number | null>(null);
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
@@ -37,6 +41,7 @@ export default function SessionDetail() {
     setEntries([]);
     setLiveSummary(null);
     setNewestSeq(null);
+    setFocusedRequest(null);
     fetchSession(id)
       .then((detail) => {
         setData(detail);
@@ -100,6 +105,21 @@ export default function SessionDetail() {
       </h1>
       <p className="meta">
         Started {formatTime(session.started_at)}
+        {" · "}
+        {/* Live sessions are still accumulating, so the figure is "so far",
+            not a final total — say so rather than letting it read as finished. */}
+        <span
+          className="session-duration"
+          title={
+            session.timing.busy_ms == null
+              ? undefined
+              : `${fmtDuration(session.timing.busy_ms)} busy · ${fmtDuration(session.timing.total_idle_ms)} idle`
+          }
+        >
+          {data.session.live ? "running " : ""}
+          {fmtDuration(session.duration_ms)}
+          {data.session.live ? " so far" : ""}
+        </span>
         {session.tasks.length > 0 && (
           <span className="task-roster">
             {session.tasks.map((t) => (
@@ -164,7 +184,7 @@ export default function SessionDetail() {
 
         <div className="statstrip-total">
           Session total: {fmtTokens(session.input_tokens)} tok in · {fmtTokens(session.output_tokens)} tok out ·
-          across {session.turns} turn{session.turns === 1 ? "" : "s"}
+          across {session.turns} turn{session.turns === 1 ? "" : "s"} · {fmtDuration(session.duration_ms)} total
         </div>
       </div>
 
@@ -183,8 +203,13 @@ export default function SessionDetail() {
           snapshot={snapshot}
           timingSource={session.timing_source}
           newestSeq={newestSeq}
+          onOpenRequest={setFocusedRequest}
         />
       </div>
+
+      {focusedRequest != null && id && (
+        <MessagesSidebar id={id} focusSeq={focusedRequest} onClose={() => setFocusedRequest(null)} />
+      )}
     </>
   );
 }
@@ -253,11 +278,13 @@ function TranscriptEntries({
   snapshot,
   timingSource,
   newestSeq,
+  onOpenRequest,
 }: {
   entries: Entry[];
   snapshot: SessionDetailData["snapshot"];
   timingSource: SessionDetailData["session"]["timing_source"];
   newestSeq: number | null;
+  onOpenRequest: (requestSeq: number) => void;
 }) {
   const nodes = buildTranscriptTree(entries);
   const markers = iterationMarkerSeqs(entries);
@@ -271,6 +298,7 @@ function TranscriptEntries({
       newestSeq={newestSeq}
       markers={markers}
       defaultOpen={subRuns <= COLLAPSE_THRESHOLD}
+      onOpenRequest={onOpenRequest}
     />
   );
 }
@@ -281,6 +309,7 @@ interface NodeProps {
   newestSeq: number | null;
   markers: Set<number>;
   defaultOpen: boolean;
+  onOpenRequest: (requestSeq: number) => void;
 }
 
 function TranscriptNodes({ nodes, ...props }: NodeProps & { nodes: TranscriptNode[] }) {
@@ -304,7 +333,11 @@ function TranscriptNodes({ nodes, ...props }: NodeProps & { nodes: TranscriptNod
                 />
                 <TaskChip task={node.entry.task} />
               </div>
-              <TranscriptEntry entry={node.entry} snapshot={props.snapshot} />
+              <TranscriptEntry
+                entry={node.entry}
+                snapshot={props.snapshot}
+                onOpenRequest={props.onOpenRequest}
+              />
             </div>
           </Fragment>
         ),
@@ -375,9 +408,11 @@ function flatten(node: GroupNode): Entry[] {
 function TranscriptEntry({
   entry,
   snapshot,
+  onOpenRequest,
 }: {
   entry: Entry;
   snapshot: SessionDetailData["snapshot"];
+  onOpenRequest: (requestSeq: number) => void;
 }) {
   switch (entry.type) {
     case "user":
@@ -394,6 +429,33 @@ function TranscriptEntry({
       return (
         <div className="divider divider-compaction">
           ↻ context compacted — {entry.dropped} message{entry.dropped === 1 ? "" : "s"} dropped
+        </div>
+      );
+
+    case "clear":
+      return (
+        <div className="divider divider-compaction">
+          ⌫ conversation cleared — {entry.dropped} message{entry.dropped === 1 ? "" : "s"} dropped
+        </div>
+      );
+
+    case "request":
+      // The point a model call was made. The button opens the sidebar on THIS
+      // request's payload (system + tools + wire messages) — kept out of the
+      // transcript body so the narrative stays readable.
+      return (
+        <div className="request-marker">
+          <button
+            type="button"
+            className="request-btn"
+            onClick={() => entry.request_seq != null && onOpenRequest(entry.request_seq)}
+            title="View the exact payload sent to the model on this call"
+          >
+            🧠 view request
+            {entry.message_count != null && (
+              <span className="request-btn-count">{entry.message_count} msg{entry.message_count === 1 ? "" : "s"}</span>
+            )}
+          </button>
         </div>
       );
 

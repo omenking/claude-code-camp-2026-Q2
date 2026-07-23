@@ -2,6 +2,7 @@ require "json"
 require "fileutils"
 require "securerandom"
 require "time"
+require "digest"
 
 module Boukensha
   class Logger
@@ -70,8 +71,48 @@ module Boukensha
       )
     end
 
+    # The *definitive* record of what the model was handed: the exact request
+    # body built by the backend (`to_api_payload`) — system prompt, full tool
+    # schemas, and messages in provider wire format — logged at the moment of
+    # invocation. This is distinct from `prompt`, which logs a reconstruction of
+    # Context#messages (role + content) that omits the system prompt, the tool
+    # schemas, and the wire transform (tool_result → user block, reasoning
+    # denormalization, …). `prompt` drives the transcript; `request` is "what the
+    # agent actually received".
+    #
+    # `system` and `tools` are effectively constant across a turn's iterations,
+    # so they are logged in full only when they change from the previous request;
+    # otherwise a `*_unchanged` flag stands in and the reader carries the last
+    # value forward. `messages` — the part that actually grows — is always logged
+    # in full.
+    def request(payload:)
+      payload = stringify(payload)
+      messages = payload["messages"] || []
+
+      event = {
+        phase:         "request",
+        model:         payload["model"],
+        max_tokens:    payload["max_tokens"],
+        message_count: messages.size,
+        messages:      messages
+      }
+
+      merge_system!(event, payload["system"])
+      merge_tools!(event, payload["tools"] || [])
+
+      write_log(event)
+    end
+
     def compaction(before:, dropped:, context_window:)
       write_log(phase: "compaction", before: before, dropped: dropped, context_window: context_window)
+    end
+
+    # A `/clear` wiped the conversation history. `before` is the message count at
+    # the moment of the wipe (all of which were dropped) — the next `prompt`
+    # snapshot starts the history over from empty. Distinct from `compaction`,
+    # which only trims a prefix; a clear drops everything.
+    def clear(before:)
+      write_log(phase: "clear", before: before, dropped: before)
     end
 
     def tool_call(name:, args:)
@@ -145,6 +186,38 @@ module Boukensha
 
     def serialize_message(msg)
       { role: msg.role, content: msg.content }
+    end
+
+    # JSON-round-trip a symbol-keyed payload into the string-keyed shape it will
+    # have on disk, so dedup comparisons below see the same thing the reader will.
+    def stringify(payload)
+      JSON.parse(JSON.generate(payload))
+    end
+
+    # Log the system prompt in full only when it changed since the last request;
+    # otherwise mark it unchanged and let the reader carry the last value forward.
+    def merge_system!(event, system)
+      if system == @last_system && defined?(@last_system)
+        event[:system_unchanged] = true
+      else
+        event[:system]  = system
+        @last_system    = system
+      end
+    end
+
+    # Same treatment for the tool schemas, keyed on a content hash so a large
+    # unchanged toolset isn't re-serialized on every iteration.
+    def merge_tools!(event, tools)
+      sig = Digest::SHA256.hexdigest(JSON.generate(tools))
+      if sig == @last_tools_sig
+        event[:tools_unchanged] = true
+        event[:tool_count]      = @last_tool_count
+      else
+        event[:tools]        = tools
+        event[:tool_count]   = tools.size
+        @last_tools_sig      = sig
+        @last_tool_count     = tools.size
+      end
     end
 
     def execution_metadata(backend:, usage:)

@@ -347,25 +347,30 @@ module Boukensha
   end
   private_class_method :register_task_tools
 
-  # A permission-scoped tool dispatcher for a task that has NO model.
+  # A permission-scoped tool dispatcher for a native tool that has NO model.
   #
-  #   call = Boukensha.task_dispatcher("room_inspector", logger: parent)
+  #   call = Boukensha.tool_dispatcher("inspect_room", logger: parent)
   #   call.call("tbamud__look", {})   # => the MUD's text
   #
-  # It reuses everything run_task assembles except the agent: the same shared
-  # MCP clients (#mcp_clients, so a survey drives the player's live session with
-  # no second login), the same `allow:` scoping, the same Registry. Removing the
-  # LLM therefore does not widen the tool surface — the allowlist keeps
-  # enforcing rather than becoming decoration.
+  # `inspect_room` used to be an LLM subagent, so it reached its tools through
+  # run_task. It is a plain Ruby survey now, but it still must NOT inherit the
+  # player's permissions — `look` is off the player deliberately, and the survey
+  # is the only route to it. So the tool keeps its own `allow:` block under
+  # `tools.<name>.allow`, and this hands it exactly that slice.
+  #
+  # Everything except the agent is what run_task already assembles: the same
+  # shared MCP clients (#mcp_clients, so the survey drives the player's live
+  # session with no second login), the same Registry, the same default-deny.
   #
   # `logger:` — pass the caller's logger and every call is bracketed with
-  # tool_call/tool_result stamped with this task's name, which is the shape
+  # tool_call/tool_result stamped with the tool's name, which is the shape
   # mud_monitor's session view reads. The task_start/task_end pair is the
-  # caller's to open (see Tools::InspectRoom's registration), because it brackets
-  # the whole survey rather than each command.
-  def self.task_dispatcher(task_name, logger: nil)
+  # caller's to open, because it brackets the whole survey rather than each
+  # command.
+  def self.tool_dispatcher(tool_name, logger: nil)
     cfg      = config
-    perms    = task_permissions(cfg, task_name)
+    allow    = cfg.dig(:tools, tool_name, :allow)
+    perms    = allow.nil? ? Permissions.deny_all : Permissions.from(allow)
     ctx      = Context.new(system: "", context_window: 0, working_dir: Dir.pwd)
     registry = Registry.new(ctx, permissions: perms)
     register_task_tools(registry, cfg, perms)

@@ -14,6 +14,7 @@ module SessionLog
                        :task, :depth, :task_name, :max_iterations,
                        :provider, :model, :input_tokens, :output_tokens,
                        :cost_usd, :usage_unit, :usage_level,
+                       :request_seq, :message_count,
                        keyword_init: true)
 
     # One sample per `response`, in order. Drives the cost breakdown and the
@@ -53,6 +54,7 @@ module SessionLog
       seq               = 0
       turn_started      = nil # {at:, mono_ms:} of the current "turn" event
       open_tasks        = [] # task_start events awaiting their task_end
+      request_ordinal   = 0   # 1-based index among request events → sidebar checkpoint seq
 
       File.foreach(@path) do |line|
         line = line.strip
@@ -75,6 +77,17 @@ module SessionLog
           turn_started = { at: event["at"], mono_ms: event["mono_ms"] }
         when "iteration"
           current_iteration = event["n"]
+        when "request"
+          # The full request payload (system + tool schemas + wire messages) is
+          # far too large to render inline — it belongs in the messages sidebar
+          # (SessionLog::MessageTimeline). Here we emit only a compact marker so
+          # the transcript can place a button at the exact point the call was
+          # made; `request_seq` maps 1:1 to the sidebar checkpoint to open.
+          request_ordinal += 1
+          @entries << seq_entry(seq += 1, event, type: :request,
+                                 request_seq: request_ordinal,
+                                 message_count: event["message_count"],
+                                 turn: current_turn, iteration: current_iteration)
         when "prompt"
           next unless pending_user
 
@@ -87,6 +100,10 @@ module SessionLog
         when "compaction"
           @entries << seq_entry(seq += 1, event, type: :compaction, before: event["before"],
                                  dropped: event["dropped"],
+                                 turn: current_turn, iteration: current_iteration)
+        when "clear"
+          @entries << seq_entry(seq += 1, event, type: :clear, before: event["before"],
+                                 dropped: event["dropped"] || event["before"],
                                  turn: current_turn, iteration: current_iteration)
         when "reasoning"
           @entries << seq_entry(seq += 1, event, type: :reasoning, text: event["text"],

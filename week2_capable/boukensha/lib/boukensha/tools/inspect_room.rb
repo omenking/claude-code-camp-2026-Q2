@@ -1,41 +1,257 @@
 require "json"
-require_relative "room_inspector"
+require "set"
 
 module Boukensha
   module Tools
-    # The player-facing `inspect_room` tool's orchestration, kept separate from
-    # the run/repl wiring so it can be unit-tested with a fake dispatcher.
+    # The player's `inspect_room` tool: survey the current room over the shared
+    # MUD session and return it as structured data.
     #
-    # By design this is thin: the player does NOT gather or parse room data. It
-    # hands off to `RoomInspector`, which drives the shared MUD session itself
-    # (poll → look → exits, then consider/examine per distinct mob) and returns
-    # the structured room. Here we only kick that off and serialise.
+    # No LLM. This used to be an agentic `room_inspector` subagent that asked
+    # Haiku which of five fixed commands to run next — three inferences to issue
+    # a sequence its own prompt named in order, 18.6s of a 33.8s call and 47% of
+    # a session's spend. The sequence is fixed and the parse is mechanical, so
+    # both are Ruby, and there is no subtask left to name: one tool, one class.
     #
-    # `call_tool` is injected — at the entrypoint it is a permission-scoped
-    # dispatcher over the same MCP clients the player uses:
+    # It still runs under its OWN allowlist (`tools.inspect_room.allow` in
+    # settings.yaml) — poll, look, check(exits), consider, examine, nothing else
+    # — because dropping the model must not widen the tool surface. `look` is
+    # deliberately absent from the *player's* allowlist, so this is the only
+    # route to a room survey.
     #
-    #   Boukensha::Tools::InspectRoom.call(
-    #     call_tool: Boukensha.task_dispatcher(Tools::RoomInspector::TASK_NAME, logger: parent),
-    #     look_candidates: Boukensha::Extractors.look_candidates
-    #   )
-    #
-    # so the survey's MUD calls still land in the player's session file under
-    # task `room_inspector` (mud_monitor's session view depends on that shape),
-    # and still run under `room_inspector`'s allowlist rather than the player's.
-    module InspectRoom
-      def self.call(call_tool:, look_candidates: nil, prefix: "tbamud__")
-        inspector = RoomInspector.new(call_tool: call_tool,
-                                      look_candidates: look_candidates, prefix: prefix)
-        JSON.generate(inspector.survey)
+    # `call_tool` is injected (`->(name, args) { text }`) so the whole survey is
+    # testable against a transcript with no MUD, no MCP, and no network.
+    # See docs/plans/week_2/scripted_room_survey.md.
+    class InspectRoom
+      # What the survey's tool calls are labelled with in the session log, and
+      # the settings key its allowlist lives under.
+      NAME = "inspect_room".freeze
+
+      # tbaMUD colours the two entity lists differently, verified in
+      # src/act.informative.c: list_obj_to_char() wraps ground objects in
+      # CCGRN, list_char_to_char() wraps mobs in CCYEL. look_at_room() also
+      # paints the ROOM NAME with CCYEL — same code as mobs — but it is the
+      # first line, so position disambiguates it.
+      YELLOW = "\e[0;33m".freeze   # mobs (and the room name)
+      GREEN  = "\e[0;32m".freeze   # ground objects
+      RESET  = "\e[0m".freeze
+      ANSI   = /\e\[[0-9;]*m/.freeze
+
+      EXITS_LINE  = /^\[ Exits:.*\]$/.freeze
+      PROMPT_LINE = /^\d+H \d+M \d+V/.freeze
+      STATS       = /(\d+)H (\d+)M (\d+)V/.freeze
+
+      # "north - By The Temple Altar"
+      EXIT_TARGET = /^(\w+)\s+-\s+(.+)$/.freeze
+
+      # Where a mob's long description stops being its name. "A beastly fido IS
+      # mucking…", "A cityguard STANDS here." Everything before the verb is the
+      # noun phrase we can guess a keyword from.
+      VERB = /\b(?:is|are|was|were|has|have|had|stands?|sits?|lies?|rests?|sleeps?|
+                 hangs?|leans?|waits?|guards?|paces?|walks?|blocks?|kneels?|floats?)\b/x.freeze
+
+      ARTICLES = %w[a an the some].to_set
+
+      # tbaMUD's answer when a keyword doesn't match anything in the room.
+      NOT_HERE = /aren't here|isn't here|no one here|nothing here/i.freeze
+
+      MAX_KEYWORD_ATTEMPTS = 2
+
+      def initialize(call_tool:, look_candidates: nil, prefix: "tbamud__", warn_to: $stderr)
+        @call_tool  = call_tool
+        @extract    = look_candidates
+        @prefix     = prefix
+        @warn_to    = warn_to
+        # Session-lifetime: entity line -> the keyword the MUD actually answered
+        # to. Fidos, cityguards and Peacekeepers recur constantly, so after the
+        # first room most rooms cost zero extra round trips to resolve.
+        # NOT the same cache as look_candidates' — that one maps noun ->
+        # is-examinable. Merging them would be a category error.
+        @keywords = {}
       end
 
-      # There is no model in this path any more, so nothing here emits a fence.
-      # Kept because `inspect_room`'s output is a public contract and a stray
-      # fence is cheaper to strip than to debug.
-      def self.clean_json(text)
-        s = text.to_s.strip
-        s = s.sub(/\A```(?:json)?\s*\n?/m, "").sub(/\n?```\z/m, "")
-        s.strip
+      # The survey. Steps 1-3 are unconditional and fixed; step 4 is the only
+      # data-dependent part, and dedupe means three identical fidos cost one
+      # consider/examine pair, not three.
+      def survey
+        # Every MUD response ends with the prompt ("20H 100M 85V (news) >").
+        # It is never an event, and shipping it as one would put a false line
+        # into the room record the player reasons over.
+        events = lines(call(:poll)).reject { |l| l =~ PROMPT_LINE }
+        room   = parse_look(call(:look))
+        exits  = parse_exits(call(:check, kind: "exits"))
+
+        mobs = room[:mob_lines].map { |line, count| appraise(line, count) }
+        objects = room[:object_lines].map do |line, count|
+          { keyword: guess_keywords(line).first, desc: line, count: count }.compact
+        end
+
+        {
+          name: room[:name],
+          description: room[:description],
+          exit_targets: exits,
+          hp: room[:hp], mana: room[:mana], move: room[:move],
+          mobs: mobs,
+          objects: objects,
+          look_candidates: candidates(room, exits, mobs, objects),
+          events: events
+        }
+      end
+
+      def to_json(*_args) = JSON.generate(survey)
+
+      # The tool entry point: survey once, hand the player bare JSON.
+      def self.call(call_tool:, look_candidates: nil, prefix: "tbamud__")
+        new(call_tool: call_tool, look_candidates: look_candidates, prefix: prefix).to_json
+      end
+
+      # --- parsing (pure, no I/O) ----------------------------------------------
+
+      # The room name, the prose, the entity lines after `[ Exits: ]`, and the
+      # prompt stats — all in one pass over `look`'s output.
+      def parse_look(text)
+        raw = text.to_s.split(/\r?\n/)
+        coloured = raw.map { |l| [l, colour_of(l)] }
+        stripped = raw.map { |l| strip(l) }
+
+        exits_at = stripped.index { |l| l =~ EXITS_LINE }
+        name = stripped.find { |l| !l.empty? } || ""
+        body = exits_at ? stripped[(stripped.index(name) + 1)...exits_at] : []
+
+        entities = exits_at ? coloured[(exits_at + 1)..] || [] : []
+        mob_lines, object_lines = classify(entities)
+
+        stats = stripped.find { |l| l =~ PROMPT_LINE }&.match(STATS)
+        { name: name,
+          description: body.map(&:strip).reject(&:empty?).join(" ").squeeze(" "),
+          mob_lines: mob_lines, object_lines: object_lines,
+          hp: stats && stats[1].to_i, mana: stats && stats[2].to_i, move: stats && stats[3].to_i }
+      end
+
+      # "Obvious exits:" then "direction - Destination" per line. The
+      # `[ Exits: n e s w ]` line in `look` gives directions only, never
+      # destinations, so this second call is load-bearing rather than redundant.
+      def parse_exits(text)
+        lines(text).each_with_object({}) do |line, out|
+          next if line =~ PROMPT_LINE || line.start_with?("Obvious exits")
+
+          m = line.match(EXIT_TARGET) or next
+          out[m[1].downcase] = m[2].strip
+        end
+      end
+
+      # "The cityguard is in excellent condition." plus anything after
+      # "is using:".
+      def parse_examine(text)
+        rows = lines(text)
+        health = rows.find { |l| l =~ /is in (.+?) condition/ }&.match(/is in (.+?) condition/)&.captures&.first
+        using = rows.index { |l| l =~ /is using:/ }
+        equipment = using ? rows[(using + 1)..].reject { |l| l =~ PROMPT_LINE } : []
+        { health: health && "#{health} condition", equipment: equipment }
+      end
+
+      # Keyword guesses, best first: the nouns of the leading noun phrase, read
+      # right to left. "A beastly fido is mucking…" -> ["fido", "beastly"];
+      # "An automatic teller machine has been…" -> ["machine", "teller",
+      # "automatic"]. The first guess is usually right and the caller verifies
+      # the rest against the MUD rather than trusting this.
+      def guess_keywords(line)
+        phrase = strip(line).split(VERB).first.to_s
+        phrase.scan(/[A-Za-z]+/)
+              .map(&:downcase)
+              .reject { |w| ARTICLES.include?(w) }
+              .reverse
+      end
+
+      private
+
+      def call(tool, **args)
+        @call_tool.call("#{@prefix}#{tool}", args)
+      end
+
+      def lines(text) = text.to_s.split(/\r?\n/).map { |l| strip(l).strip }.reject(&:empty?)
+
+      def strip(line) = line.to_s.gsub(ANSI, "").delete("\r")
+
+      # The colour a line's text is actually printed in — the LAST non-reset
+      # code in its leading run of escapes. tbaMUD does not emit one code per
+      # line: the reset that closes entity N lands at the start of the line
+      # carrying entity N+1 ("\e[0m\e[0;33mA beastly fido…"), so reading the
+      # first code finds the reset and every entity after the first looks
+      # uncoloured.
+      def colour_of(line)
+        leading = line.to_s[/\A(?:\e\[[0-9;]*m)+/] or return nil
+        leading.scan(ANSI).reject { |c| c == RESET }.last
+      end
+
+      # Split the post-exits lines into mobs and objects, deduping identical
+      # lines (three fidos are one appraisal). Colour is the signal; if the
+      # character's `color` toggle is off there are no codes at all, and we say
+      # so rather than guessing silently.
+      def classify(entities)
+        mobs = Hash.new(0)
+        objects = Hash.new(0)
+        uncoloured = 0
+
+        entities.each do |raw, colour|
+          line = strip(raw).strip
+          next if line.empty? || line =~ PROMPT_LINE
+
+          case colour
+          when GREEN  then objects[line] += 1
+          when YELLOW then mobs[line] += 1
+          else
+            uncoloured += 1
+            # Positional fallback: tbaMUD prints objects before mobs, but with
+            # no colour we cannot tell where the boundary is. Mobs is the safer
+            # bucket — a wrong `consider` costs one round trip and answers
+            # "They aren't here", where a missed mob silently drops a threat.
+            mobs[line] += 1
+          end
+        end
+
+        if uncoloured.positive?
+          @warn_to&.puts "[inspect_room] #{uncoloured} entity line(s) had no colour codes; " \
+                         "mob/object split is a guess. Enable the character's `color` toggle."
+        end
+        [mobs, objects]
+      end
+
+      # consider + examine per DISTINCT mob, with the keyword verified against
+      # the MUD instead of assumed.
+      def appraise(line, count)
+        keyword, threat = resolve(line)
+        return { keyword: nil, desc: line, count: count, threat: nil } unless keyword
+
+        detail = parse_examine(call(:examine, target: keyword))
+        { keyword: keyword, desc: line, count: count, threat: threat,
+          health: detail[:health], equipment: detail[:equipment] }
+      end
+
+      # Returns [keyword, threat]. A cached keyword still costs one `consider`
+      # (that IS the threat reading) but never costs a miss.
+      def resolve(line)
+        guesses = @keywords[line] ? [@keywords[line]] : guess_keywords(line).first(MAX_KEYWORD_ATTEMPTS)
+
+        guesses.each do |guess|
+          answer = call(:consider, target: guess).to_s
+          next if answer =~ NOT_HERE
+
+          @keywords[line] = guess
+          return [guess, lines(answer).reject { |l| l =~ PROMPT_LINE }.first]
+        end
+        # Give up rather than burning turns — same posture the old prompt
+        # specified: emit the mob with a null threat.
+        [nil, nil]
+      end
+
+      # The one field no parse can produce. Advisory by design, so a missing
+      # model just means an empty list.
+      def candidates(room, exits, mobs, objects)
+        return [] unless @extract
+
+        @extract.call(name: room[:name], description: room[:description],
+                      exit_targets: exits, mobs: mobs, objects: objects,
+                      exclude: Set.new)
       end
     end
   end

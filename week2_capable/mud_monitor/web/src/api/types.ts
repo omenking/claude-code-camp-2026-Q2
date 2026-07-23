@@ -91,6 +91,8 @@ export type EntryType =
   | "plan"
   | "tool"
   | "compaction"
+  | "clear"
+  | "request"
   | "turn_end"
   | "task_start"
   | "task_end"
@@ -133,9 +135,13 @@ export interface Entry {
   tool_error?: string | null;
   result_html?: string;
 
-  // compaction
+  // compaction | clear
   before?: number;
   dropped?: number;
+
+  // request (a marker that opens the sidebar at the matching checkpoint)
+  request_seq?: number;
+  message_count?: number;
 
   // turn_end
   reason?: string | null;
@@ -148,6 +154,69 @@ export interface Entry {
 
   // unknown
   raw?: Record<string, unknown>;
+}
+
+// ---- message timeline (the raw array fed to the model) ------------------
+// A single content block inside an assistant message. `input`/`name`/`id` are
+// present on tool_use; `text` on text blocks. Kept permissive because the log
+// passes provider content through untouched.
+export interface ContentBlock {
+  type: string;
+  text?: string;
+  name?: string;
+  id?: string;
+  input?: Record<string, unknown>;
+  content?: unknown;
+  [key: string]: unknown;
+}
+
+// One logged message: role + content, where content is a plain string
+// (user / tool_result) or an array of content blocks (assistant).
+export interface TimelineMessage {
+  role: string;
+  content: string | ContentBlock[];
+}
+
+// A logged tool definition (provider wire shape — permissive across backends).
+export interface TimelineTool {
+  name?: string;
+  description?: string;
+  input_schema?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+// One model call: the complete payload the model saw, plus how the message
+// array changed since the previous call.
+//   source          "request" = the definitive body (system + tool schemas +
+//                   wire messages); "prompt" = a legacy reconstruction (no
+//                   system/tools, role+content only).
+//   system/tools    carried-forward constants; *_changed says whether this call
+//                   is where they actually changed (the logger dedups them).
+//   messages.slice(carried)  the appended tail (the delta); `dropped` is how
+//                   many fell off the front and `marker` says why.
+export interface MessageCheckpoint {
+  seq: number;
+  source: "request" | "prompt";
+  turn: number;
+  iteration: number;
+  at: string | null;
+  model: string | null;
+  max_tokens: number | null;
+  system: string | null;
+  system_changed: boolean;
+  tools: TimelineTool[] | null;
+  tool_count: number | null;
+  tools_changed: boolean;
+  message_count: number;
+  dropped: number;
+  carried: number;
+  marker: "compaction" | "clear" | "trim" | null;
+  messages: TimelineMessage[];
+}
+
+export interface MessagesTimeline {
+  checkpoints: MessageCheckpoint[];
+  live: boolean;
 }
 
 export interface SessionDetail {

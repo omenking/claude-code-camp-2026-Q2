@@ -12,6 +12,7 @@ Rails.application.routes.draw do
         member do
           get "events"
           get "stream"
+          get "messages"
         end
       end
 

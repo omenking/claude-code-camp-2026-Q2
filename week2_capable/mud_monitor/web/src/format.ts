@@ -74,6 +74,21 @@ export function fmtDelta(ms: number | null | undefined, coarse = false): string 
   return `${Math.floor(totalSec / 60)}m ${totalSec % 60}s`;
 }
 
+// A whole-session wall-clock total. Unlike fmtDelta (which is tuned for
+// per-entry gaps and tops out at minutes), this carries hours — a session left
+// running overnight must not read as "743m 12s". Null stays "—": a session
+// with no parseable start or end has an unknown duration, not a zero one.
+export function fmtDuration(ms: number | null | undefined): string {
+  if (ms == null) return "—";
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
 export function fmtBytes(n: number | null | undefined): string {
   const v = n ?? 0;
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} MB`;

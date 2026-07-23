@@ -504,11 +504,12 @@ dead enum values in config is a promise we measured our way out of.
 
 Same file, deletions:
 
-- `tasks.room_inspector.provider` / `.model` / `.max_iterations` /
-  `.prompt_override` — nothing in the survey calls an LLM.
-- `tasks.room_inspector.allow` **stays**, and moves into the dispatcher scoping
-  per `scripted_room_survey.md` §2.1.
+- The whole `tasks.room_inspector` block — with no subagent there is no task.
+  Its `allow:` list **moves to `tools.inspect_room.allow`** and keeps scoping
+  the survey per `scripted_room_survey.md` §2.1; everything else (provider,
+  model, `max_iterations`, `prompt_override`) is deleted.
 - `prompts/room_inspector/system.md` is **deleted**, not rewritten.
+- The name `room_inspector` disappears: one feature, one name, `inspect_room`.
 
 ### 9.6 Failure posture
 
@@ -654,7 +655,7 @@ here only for sequencing.
 | 6 | `Extractors::WordPiece` + parity test (§9.3, §9.7) | 3 |
 | 7 | `Extractors::Model` + `onnxruntime` in the gemspec (§9.1, §9.3) | 6 |
 | 8 | Widen `RoomParser`'s `candidate_extractor` signature and compose the two extractors (§9.3) | 5, 7 |
-| 9 | `settings.yaml` block + delete `room_inspector` LLM config and its prompt (§9.5) | 8 |
+| 9 | `settings.yaml`: `tools.inspect_room` block, delete the `room_inspector` task and its prompt (§9.5) | 8 |
 | 10 | Remaining tests (§9.7) | 8 |
 | 11 | **§8.1 — the ~0.42 s per logged event.** Biggest single win in the plan; helps the player loop too | — |
 | 12 | ↩ Probe label store (`scripted_room_survey.md` §12 item 16) — the path to improving the model and measuring the noise ceiling | 8 |
@@ -674,7 +675,7 @@ the one I would do first if only one thing gets done.
   manifest threshold reports **P ≥ 60%** and speaks in **≤ 20%** of rooms, from a
   median-of-3-seeds run (§4) — a single lucky run does not count. (Measured on
   the spike artifact: P 67.6%, speaks 15.0%, 0.21 probes/room.)
-- **Cost** — a 3-room session shows `room_inspector` at **$0.00**, against
+- **Cost** — a 3-room session shows `inspect_room` at **$0.00**, against
   $0.0363 today.
 - **Reproducibility** — `rake model:build` on a clean checkout reproduces the
   committed manifest's eval numbers within the §4 seed band.
@@ -737,17 +738,17 @@ LLM at all.
 
 | file | what |
 |---|---|
-| `tools/room_inspector.rb` | **`Tools::RoomInspector`** — the survey: fixed sequence, colour-based mob/object split, dedupe, keyword guess + verify/retry, full parse |
-| `tools/inspect_room.rb` | the thin player-facing tool; takes `call_tool:` instead of `run:` |
-| `boukensha.rb` | **`Boukensha.task_dispatcher(task_name, logger:)`** — permission-scoped tool access with no model attached |
+| `tools/inspect_room.rb` | **`Tools::InspectRoom`** — one class, one tool: fixed sequence, colour-based mob/object split, dedupe, keyword guess + verify/retry, full parse |
+| `boukensha.rb` | **`Boukensha.tool_dispatcher(tool_name, logger:)`** — permission-scoped tool access with no model attached |
 | `boukensha_loader.rb` | builds the dispatcher and extractor once per session, brackets each survey in `logger.task("room_inspector")` |
-| `tasks/room_inspector.rb`, `prompts/room_inspector/system.md` | **deleted** |
-| `test/test_room_inspector.rb` | 14 tests against transcripts captured from the live container |
+| `tasks/room_inspector.rb`, `prompts/room_inspector/system.md`, `tasks.room_inspector` | **deleted** — no subagent means no task, so the name `room_inspector` is gone entirely |
+| `test/test_inspect_room.rb` | 25 tests, the survey ones against transcripts captured from the live container |
 
-`settings.yaml`'s `tasks.room_inspector` block lost its provider, model,
-`max_iterations` and `prompt_override` but **kept its `allow:` list**, which is
-now its entire purpose: it is what `task_dispatcher` scopes to, so deleting the
-model did not widen the tool surface.
+There is now exactly one name for this feature — `inspect_room` — across the
+class, the file, the settings key, the session-log label and the tool the player
+calls. The allowlist outlives the subagent as **`tools.inspect_room.allow`**,
+which is what `tool_dispatcher` scopes to: dropping the model did not widen the
+tool surface, and `look` still appears nowhere in the player's own allowlist.
 
 Measured end to end against the captured transcripts, with the real model
 loaded: **15 ms for the first room, 5 ms after** — the whole survey's compute,

@@ -105,10 +105,10 @@ module BoukenshaLoader
 
     # Most tools come from settings.yaml's `mcp_servers:` block. The one native
     # tool we register here is `inspect_room`: the player calls it to get the
-    # current room back as structured JSON. It does NOT gather any data itself —
-    # it hands off to Tools::RoomInspector, which drives the shared MUD session
-    # (poll → look → exits, then consider/examine per distinct mob) and parses
-    # the result. The player never fetches or parses room text.
+    # current room back as structured JSON. Tools::InspectRoom drives the shared
+    # MUD session itself (poll → look → exits, then consider/examine per
+    # distinct mob) and parses the result. The player never fetches or parses
+    # room text, and never sees `look`.
     #
     # No LLM is involved: the sequence is fixed and the parse is mechanical, so
     # this costs five MUD round trips and ~7ms of local model inference for
@@ -123,14 +123,14 @@ module BoukenshaLoader
     # wins over the environment, where it used to lose.
     Boukensha.repl(tui: !no_tui) do
       # Captured out of the DSL so the survey's tool calls append to the
-      # player's session file, labelled `room_inspector`, instead of opening one
+      # player's session file, labelled `inspect_room`, instead of opening one
       # file per room visited (plan Amendment A).
       parent = logger
 
       # Built once per session, not per room: the dispatcher resolves the
       # allowlist and MCP registry, and the extractor loads a ~40MB ONNX graph.
-      task_name  = Boukensha::Tools::RoomInspector::TASK_NAME
-      call_tool  = Boukensha.task_dispatcher(task_name, logger: parent)
+      name       = Boukensha::Tools::InspectRoom::NAME
+      call_tool  = Boukensha.tool_dispatcher(name, logger: parent)
       candidates = Boukensha::Extractors.look_candidates
 
       tool "inspect_room",
@@ -140,10 +140,11 @@ module BoukenshaLoader
              "objects, and anything that happened while you were idle). Use this " \
              "whenever you arrive somewhere new or need to decide where to go " \
              "next. Takes no arguments." do |**_|
-        # task_start/task_end bracket the WHOLE survey, so mud_monitor still
-        # shows one `room_inspector` group per room with its MUD calls nested
-        # at depth 1 — the same shape as when a subagent produced them.
-        parent.task(task_name) do
+        # task_start/task_end bracket the WHOLE survey, so mud_monitor shows
+        # one `inspect_room` group per room with its MUD calls nested at depth
+        # 1 — the same shape as when a subagent produced them, minus the
+        # prompt/plan/response events in between.
+        parent.task(name) do
           Boukensha::Tools::InspectRoom.call(call_tool: call_tool, look_candidates: candidates)
         end
       end

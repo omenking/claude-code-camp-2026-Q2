@@ -27,6 +27,10 @@ class EntrySerializer
       { text: entry.text }
     when :compaction
       { before: entry.before, dropped: entry.dropped }
+    when :clear
+      { before: entry.before, dropped: entry.dropped }
+    when :request
+      { request_seq: entry.request_seq, message_count: entry.message_count }
     when :reasoning
       { text: entry.text, redacted: entry.redacted }
     when :plan

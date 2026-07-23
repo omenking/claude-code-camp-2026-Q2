@@ -19,6 +19,18 @@ tools:
       # evidence. Same for model_dir: it is <boukensha dir>/models/look_candidates.
       extractor: model                      # none | model
 
+    # The survey's own tool slice, default-deny. It is NOT the player's: `look`
+    # appears here and nowhere in `tasks.player.allow`, which is what makes
+    # inspect_room the only route to a room survey. This used to live under
+    # `tasks.room_inspector` because the survey was an LLM subagent; the model
+    # is gone, the scoping is not.
+    allow:
+      - tbamud__poll
+      - tbamud__look
+      - "tbamud__check(kind: exits)"
+      - tbamud__consider
+      - tbamud__examine
+
 tasks:
   player:
     provider: anthropic 
@@ -68,23 +80,6 @@ tasks:
       #- tbamud__send_raw
       - tbamud__poll
       - tbamud__mud_status
-  # The room survey over the SHARED MUD session. It has NO provider, model or
-  # prompt: Tools::RoomInspector drives these primitives from Ruby, because the
-  # sequence is fixed and the parse is mechanical. Asking a model which of five
-  # known commands to run next cost 18.6s and three inferences per room.
-  #
-  # This block survives purely as the survey's PERMISSION SCOPE — it is what
-  # Boukensha.task_dispatcher scopes to, so dropping the LLM did not widen the
-  # tool surface. `look` appears here and nowhere in the player's allowlist,
-  # which is what makes inspect_room the only route to a room survey.
-  room_inspector:
-    # `check` is pinned to the one kind it needs: exits.
-    allow:
-      - tbamud__poll
-      - tbamud__look
-      - "tbamud__check(kind: exits)"
-      - tbamud__consider
-      - tbamud__examine
 # EVERY tool the agent has comes from this block. boukensha ships none of its
 # own — it is an MCP host, and an empty mcp_servers means an agent that can
 # only talk. Each entry is one server process: command + args + env, the same

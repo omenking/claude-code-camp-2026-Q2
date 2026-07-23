@@ -1,0 +1,16 @@
+{"phase":"session_start","session_id":"messages_timeline","at":"2026-07-23T10:00:00-04:00","model":"claude-haiku-4-5","provider":"anthropic","context_window":200000}
+{"phase":"turn","n":0,"session_id":"messages_timeline","at":"2026-07-23T10:00:00-04:00"}
+{"phase":"iteration","n":1,"session_id":"messages_timeline","at":"2026-07-23T10:00:00-04:00"}
+{"phase":"prompt","message_count":1,"messages":[{"role":"user","content":"look around"}],"session_id":"messages_timeline","at":"2026-07-23T10:00:00-04:00"}
+{"phase":"response","text":"(tool use)","stop_reason":"tool_use","session_id":"messages_timeline","at":"2026-07-23T10:00:01-04:00"}
+{"phase":"iteration","n":2,"session_id":"messages_timeline","at":"2026-07-23T10:00:02-04:00"}
+{"phase":"prompt","message_count":3,"messages":[{"role":"user","content":"look around"},{"role":"assistant","content":[{"type":"text","text":"looking"},{"type":"tool_use","id":"t1","name":"look","input":{}}]},{"role":"tool_result","content":"The Common Square"}],"session_id":"messages_timeline","at":"2026-07-23T10:00:02-04:00"}
+{"phase":"response","text":"(tool use)","stop_reason":"tool_use","session_id":"messages_timeline","at":"2026-07-23T10:00:03-04:00"}
+{"phase":"compaction","before":3,"dropped":1,"context_window":200000,"session_id":"messages_timeline","at":"2026-07-23T10:00:04-04:00"}
+{"phase":"iteration","n":3,"session_id":"messages_timeline","at":"2026-07-23T10:00:04-04:00"}
+{"phase":"prompt","message_count":4,"messages":[{"role":"assistant","content":[{"type":"text","text":"looking"},{"type":"tool_use","id":"t1","name":"look","input":{}}]},{"role":"tool_result","content":"The Common Square"},{"role":"assistant","content":[{"type":"tool_use","id":"t2","name":"move","input":{"dir":"north"}}]},{"role":"tool_result","content":"Main Street"}],"session_id":"messages_timeline","at":"2026-07-23T10:00:04-04:00"}
+{"phase":"response","text":"You are on Main Street.","stop_reason":"end_turn","session_id":"messages_timeline","at":"2026-07-23T10:00:05-04:00"}
+{"phase":"clear","before":4,"dropped":4,"session_id":"messages_timeline","at":"2026-07-23T10:00:06-04:00"}
+{"phase":"turn","n":1,"session_id":"messages_timeline","at":"2026-07-23T10:00:07-04:00"}
+{"phase":"iteration","n":1,"session_id":"messages_timeline","at":"2026-07-23T10:00:07-04:00"}
+{"phase":"prompt","message_count":1,"messages":[{"role":"user","content":"new task"}],"session_id":"messages_timeline","at":"2026-07-23T10:00:07-04:00"}

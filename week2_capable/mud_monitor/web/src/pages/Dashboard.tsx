@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ApiRequestError, fetchDropped, fetchSessions } from "../api/client";
 import type { DroppedSummary, SessionSummary } from "../api/types";
-import { fmtBytes, fmtCost, fmtPct, formatTime, truncate } from "../format";
+import { fmtBytes, fmtCost, fmtDuration, fmtPct, formatTime, truncate } from "../format";
 
 interface Health {
   ok: boolean;
@@ -86,6 +86,7 @@ export default function Dashboard() {
           <thead>
             <tr>
               <th>Started</th>
+              <th className="nowrap">Duration</th>
               <th>Session ID</th>
               <th>Task</th>
               <th className="nowrap">Cost</th>
@@ -95,6 +96,9 @@ export default function Dashboard() {
             {recent.map((s) => (
               <tr key={s.id}>
                 <td className="nowrap">{formatTime(s.started_at)}</td>
+                <td className="nowrap duration-cell" title={`ended ${formatTime(s.ended_at)}`}>
+                  {fmtDuration(s.duration_ms)}
+                </td>
                 <td>
                   <Link to={`/sessions/${s.id}`}>{s.id}</Link>
                   {s.live && <span className="live-dot" title="live" />}

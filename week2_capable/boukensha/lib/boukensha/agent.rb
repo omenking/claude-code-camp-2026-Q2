@@ -47,6 +47,10 @@ module Boukensha
         @iteration += 1
         @logger.iteration(n: @iteration, max: @max_iterations)
         @logger.prompt(messages: @context.messages, tools: @context.tools, context_window: @context.context_window)
+        # The definitive record: the exact body about to go on the wire. Built
+        # from the same (context, opts) the client will use a line later, so it
+        # is byte-identical to what @client.call sends.
+        @logger.request(payload: @builder.to_api_payload(**call_opts))
 
         response = @client.call(**call_opts)
         @logger.raw(data: response)
@@ -106,7 +110,9 @@ module Boukensha
     # Falls back to a deterministic message if the call fails.
     def wrap_up(reason)
       @context.add_message(:user, WRAP_UP_DIRECTIVE)
-      response    = @client.call(tools: [], max_output_tokens: WRAP_UP_OUTPUT_TOKENS)
+      wrap_opts = { tools: [], max_output_tokens: WRAP_UP_OUTPUT_TOKENS }
+      @logger.request(payload: @builder.to_api_payload(**wrap_opts))
+      response    = @client.call(**wrap_opts)
       parsed_wrap = @builder.parse_response(response)
       text        = extract_text(parsed_wrap[:content])
       text        = fallback_message(reason) if text.strip.empty?

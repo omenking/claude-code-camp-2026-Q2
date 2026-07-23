@@ -101,12 +101,16 @@ module Boukensha
         output("(logging enabled)")
         :command
       when "/clear"
+        before = @context.messages.size
         @context.clear_messages!
         @turn = 0
+        @logger.clear(before: before)
         output("(conversation history cleared)")
         :command
       when "/compact"
+        before  = @context.messages.size
         dropped = @context.compact_messages!
+        @logger.compaction(before: before, dropped: dropped, context_window: @context.context_window)
         output("(compacted context — #{dropped} messages dropped)")
         :command
       end

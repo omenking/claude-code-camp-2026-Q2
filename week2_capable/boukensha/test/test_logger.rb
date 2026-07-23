@@ -34,6 +34,81 @@ class TestLogger < Minitest::Test
     end
   end
 
+  # --- clear/compact visibility -------------------------------------------
+
+  def test_clear_writes_a_clear_event_recording_the_dropped_count
+    events = capture do |logger|
+      logger.clear(before: 12)
+    end
+
+    clear = events.find { |e| e["phase"] == "clear" }
+    refute_nil clear
+    assert_equal 12, clear["before"]
+    assert_equal 12, clear["dropped"]
+  end
+
+  # --- request: the definitive payload ------------------------------------
+
+  def test_request_logs_the_full_payload_system_tools_and_messages
+    events = capture do |logger|
+      logger.request(payload: {
+        model: "claude-haiku-4-5",
+        system: "You are a MUD player.",
+        max_tokens: 1024,
+        tools: [ { name: "look", input_schema: {} } ],
+        messages: [ { role: "user", content: "hi" } ]
+      })
+    end
+
+    req = events.find { |e| e["phase"] == "request" }
+    refute_nil req
+    assert_equal "claude-haiku-4-5", req["model"]
+    assert_equal "You are a MUD player.", req["system"]
+    assert_equal 1, req["tool_count"]
+    assert_equal "look", req["tools"].first["name"]
+    assert_equal 1, req["message_count"]
+    assert_equal "hi", req["messages"].first["content"]
+  end
+
+  def test_request_omits_unchanged_system_and_tools_on_repeat_calls
+    payload = {
+      model: "m", system: "S", max_tokens: 10,
+      tools: [ { name: "look" } ],
+      messages: [ { role: "user", content: "a" } ]
+    }
+
+    events = capture do |logger|
+      logger.request(payload: payload)
+      logger.request(payload: payload.merge(messages: [ { role: "user", content: "a" },
+                                                        { role: "assistant", content: "b" } ]))
+    end
+
+    reqs = events.select { |e| e["phase"] == "request" }
+    # first call carries system + tools in full
+    assert_equal "S", reqs[0]["system"]
+    refute reqs[0].key?("system_unchanged")
+    assert reqs[0].key?("tools")
+    # second call: constants unchanged, only messages re-logged in full
+    assert reqs[1]["system_unchanged"]
+    assert reqs[1]["tools_unchanged"]
+    refute reqs[1].key?("system")
+    refute reqs[1].key?("tools")
+    assert_equal 1, reqs[1]["tool_count"]          # carried count still reported
+    assert_equal 2, reqs[1]["message_count"]       # messages always logged in full
+  end
+
+  def test_request_relogs_system_and_tools_when_they_change
+    events = capture do |logger|
+      logger.request(payload: { system: "S1", tools: [ { name: "a" } ], messages: [] })
+      logger.request(payload: { system: "S2", tools: [ { name: "a" }, { name: "b" } ], messages: [] })
+    end
+
+    reqs = events.select { |e| e["phase"] == "request" }
+    assert_equal "S2", reqs[1]["system"]
+    assert_equal 2, reqs[1]["tool_count"]
+    refute reqs[1]["system_unchanged"]
+  end
+
   # --- Amendment A: the task stack ----------------------------------------
 
   def test_every_event_carries_the_root_task_at_depth_zero

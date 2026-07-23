@@ -39,6 +39,29 @@ module SessionLog
       assert_equal %i[user], parser.entries.map(&:type)
     end
 
+    test "a clear event becomes a :clear entry rather than passing through as unknown" do
+      parser = Parser.load(FIXTURES.join("messages_timeline.jsonl"))
+
+      clear = parser.entries.find { |e| e.type == :clear }
+      refute_nil clear
+      assert_equal 4, clear.dropped
+      refute parser.entries.any? { |e| e.type == :unknown }
+    end
+
+    test "each request becomes a compact marker entry (a sidebar button), never a raw blob" do
+      parser   = Parser.load(FIXTURES.join("request_timeline.jsonl"))
+      requests = parser.entries.select { |e| e.type == :request }
+
+      refute parser.entries.any? { |e| e.type == :unknown }, "request events must not render as raw unknown blocks"
+      # one marker per request, carrying the 1-based ordinal that maps to the
+      # sidebar checkpoint plus a message count for the button label
+      assert_equal 4, requests.length
+      assert_equal [ 1, 2, 3, 4 ], requests.map(&:request_seq)
+      assert_equal [ 1, 3, 4, 1 ], requests.map(&:message_count)
+      # the narrative still renders around them (assistant responses, etc.)
+      assert_includes parser.entries.map(&:type), :assistant
+    end
+
     test "an empty file parses to no entries and no crash" do
       parser = Parser.load(FIXTURES.join("empty.jsonl"))
 

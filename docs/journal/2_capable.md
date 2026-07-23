@@ -201,6 +201,22 @@ It thinks the TUI redraws every 60ms and its adding a delay.
 
 We will need to perform a test with and without the tui.
 
+I performed without the tui and it performed incredibly fast
+the mud monitor doesn't show total duration for a session so I will have to add that
+I will then need to perform with and without tui
+
+When an agent moved it has the print out of the room, and I wonder if that gets
+injested back into the message history and does our tool call end up back in the tool history
+so could we ideally remove from the message history.
+
+We also have no way of seeing what the current message history looks like.
+ingested at each step, I wonder if thats something we can capture of that would be too expensive to do.
+
+I notice in some runs it just goes back to moving without actually calling inspect_room.
+We need some kind of way to fix this.
+
+## Step 11 - Message History
+
 
 ## Technical Conclusions
 Reflecting back your education guesses from the technical uncertainty section what was the technical outcomes. Is there any new technical uncertainty that has been put aside for future exploration. Are there any next steps or technical considerations worth noting?

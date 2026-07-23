@@ -43,6 +43,21 @@ module Api
         }
       end
 
+      # GET /sessions/:id/messages
+      # The raw message array handed to the model on every call, as ordered
+      # checkpoints with per-call deltas — the "exactly what it's consuming"
+      # view the curated transcript can't give. On-demand (no SSE): the sidebar
+      # refetches when the reader asks.
+      def messages
+        path     = store.path_for(params[:id])
+        timeline = SessionLog::MessageTimeline.load(path)
+
+        render json: {
+          checkpoints: timeline.checkpoints.map { |c| MessageCheckpointSerializer.call(c) },
+          live: store.live?(path)
+        }
+      end
+
       # GET /sessions/:id/stream?after=<seq>          (text/event-stream)
       def stream
         path = store.path_for(params[:id])
